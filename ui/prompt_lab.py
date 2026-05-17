@@ -185,8 +185,27 @@ def render():
     # TAB 2 — AUTO-PĘTLA
     # =========================================================
     with tab_auto:
-        st.subheader("🔄 Automatyczne doskonalenie — ustaw liczbę iteracji i puść maszynę")
-        st.info("AI samo uruchomi pipeline → oceni każdy krok → zaproponuje i zastosuje ulepszenia → powtórzy N razy.")
+        st.subheader("🔄 Automatyczne doskonalenie promptów")
+
+        with st.expander("ℹ️ Jak działa auto-pętla?", expanded=False):
+            st.markdown("""
+            Auto-pętla wykonuje **N pełnych cykli** bez żadnej ingerencji:
+
+            | Krok | Co się dzieje |
+            |------|---------------|
+            | 1. Pipeline | Uruchamia generowanie treści z **aktualnymi promptami** |
+            | 2. Ocena | AI-Ewaluator ocenia output każdego kroku (1-10) |
+            | 3. Ulepszenie | AI-Ulepszacz przepisuje prompty kroków z oceną < progu |
+            | 4. Zastosowanie | Ulepszone prompty stają się bazą dla **następnej iteracji** |
+
+            **Iteracja 1** → oryginalne prompty z bazy  
+            **Iteracja 2** → prompty poprawione po ocenie iteracji 1  
+            **Iteracja 3** → prompty poprawione po ocenie iteracji 2  
+            itd.
+
+            Ostatnia iteracja generuje propozycje, ale ich **nie stosuje automatycznie** —  
+            możesz je ręcznie przejrzeć w zakładce 💡 Propozycje ulepszeń.
+            """)
 
         sel_camp_a = st.selectbox("Kampania:", list(camp_opts.keys()),
                                    format_func=lambda x: camp_opts[x], key="a_camp")
@@ -243,13 +262,40 @@ def render():
                     )
 
                 auto_bar.empty(); auto_ph.empty()
-                # Offset iteration numbers
                 offset = len(_lab()["iterations"])
                 for it in new_iters:
                     it["number"] += offset
                     _lab()["iterations"].append(it)
 
-                st.success(f"✅ Auto-pętla zakończona! Dodano {len(new_iters)} iteracji. Sprawdź 'Historia'.")
+                # ── Rich post-run summary ─────────────────────────────
+                st.success(f"✅ Auto-pętla zakończona! Wykonano {len(new_iters)} iteracji.")
+                st.markdown("#### Podsumowanie wyników auto-pętli")
+                summary_rows = []
+                for it in new_iters:
+                    evals = it.get("evaluations", {})
+                    scores = [e.get("score", 0) for e in evals.values() if isinstance(e, dict) and "score" in e]
+                    n_improved = len(it.get("proposals", {}))
+                    base_label = "(oryginalne prompty)" if it == new_iters[0] else f"(+{n_improved} ulepszeń z poprzedniej iteracji)"
+                    avg_sc = round(sum(scores)/len(scores), 1) if scores else 0
+                    summary_rows.append({
+                        "Iteracja": f"It.{it['number']}",
+                        "Prompty": base_label,
+                        "Avg score": avg_sc,
+                        "Kroków ocenionych": len(scores),
+                        "Kroków ulepszonych": n_improved,
+                    })
+                st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+
+                if len(new_iters) >= 2:
+                    first_sc = [e.get("score",0) for e in new_iters[0]["evaluations"].values() if isinstance(e,dict) and "score" in e]
+                    last_sc  = [e.get("score",0) for e in new_iters[-1]["evaluations"].values() if isinstance(e,dict) and "score" in e]
+                    if first_sc and last_sc:
+                        delta = round(sum(last_sc)/len(last_sc) - sum(first_sc)/len(first_sc), 1)
+                        arrow = "📈" if delta > 0 else ("📉" if delta < 0 else "➡️")
+                        st.info(f"{arrow} Zmiana średniego score: **{sum(first_sc)/len(first_sc):.1f} → {sum(last_sc)/len(last_sc):.1f}** ({delta:+.1f} pkt)")
+
+                st.info("💡 Ostatnia iteracja ma propozycje ulepszeń gotowe do ręcznego przeglądu "
+                        "w zakładce **💡 Propozycje ulepszeń**. Możesz je zatwierdzić i uruchomić kolejną rundę.")
                 st.rerun()
 
     # =========================================================
@@ -448,8 +494,11 @@ def render():
                 ev = it.get("evaluations", {})
                 sc = [e.get("score", 0) for e in ev.values() if isinstance(e, dict) and "score" in e]
                 rows.append({
-                    "Iteracja": it["number"],
+                    "Iteracja": f"It.{it['number']}",
                     "Tryb": "🔄 Auto" if it.get("auto") else "✋ Ręczny",
+                    "Prompty": "oryginalne" if (it.get("auto") and _lab()["iterations"].index(it) == next(
+                        (j for j, x in enumerate(_lab()["iterations"]) if x.get("auto")), -1))
+                               else ("ulepszone (auto)" if it.get("auto") else "ulepszone (ręczne)"),
                     "Avg score": round(sum(sc) / len(sc), 1) if sc else None,
                     "Ocenione kroków": len(sc),
                     "Ulepszone kroków": len(it.get("proposals", {})),
