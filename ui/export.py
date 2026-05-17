@@ -20,7 +20,7 @@ def render():
             
         c1, c2, c3 = st.columns(3)
         f_camp = c1.selectbox("Wybierz Kampanię", list(camp_options.keys()), format_func=lambda x: camp_options[x], key="exp_f_camp")
-        f_status = c2.selectbox("Tylko o statusie", ["all", "completed", "needs_review", "queued", "failed", "processing", "draft", "interrupted"], index=1, help="Domyślnie eksportowane są tylko ukończone zlecenia, by nie zaciemniać tabel logami w toku.")
+        f_status = c2.selectbox("Tylko o statusie", JOB_STATUSES, index=JOB_STATUSES.index("completed") if "completed" in JOB_STATUSES else 0, help="Domyślnie eksportowane są tylko ukończone zlecenia, by nie zaciemniać tabel logami w toku.")
         f_ctype = c3.selectbox("Typ treści", ["all", "ecommerce_category", "ecommerce_product", "blog_post", "landing_page"])
         
         c4, c5 = st.columns(2)

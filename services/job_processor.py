@@ -1,227 +1,30 @@
-import streamlit as st
 import json
 import re
-from datetime import datetime
 from db.supabase_client import get_supabase_client
 from services.ai_service import generate_ai_response
 from services.html_cleaner import clean_html
 from services.seo_quality_service import analyze_seo_quality
-
-# -------------------------------------------------------------------------
-# CRUD Zadań
-# -------------------------------------------------------------------------
-
-def get_campaign_prompt_sets(campaign_id):
-    client = get_supabase_client()
-    if not client: return []
-    try:
-        res = client.table("campaign_prompt_sets").select("*").eq("campaign_id", campaign_id).order("created_at").execute()
-        return res.data
-    except:
-        return []
-
-def get_prompt_steps_for_set(set_id):
-    client = get_supabase_client()
-    if not client: return []
-    try:
-        res = client.table("campaign_prompt_steps").select("*").eq("campaign_prompt_set_id", set_id).order("step_order").execute()
-        return res.data
-    except:
-        return []
-
-def get_content_jobs(campaign_id=None, status=None, content_type=None, language=None, search_keyword=None):
-    client = get_supabase_client()
-    if not client: return []
-    try:
-        query = client.table("content_jobs").select("*").order("created_at", desc=True)
-        if campaign_id: query = query.eq("campaign_id", campaign_id)
-        if status and status != "all": query = query.eq("status", status)
-        if content_type and content_type != "all": query = query.eq("content_type", content_type)
-        if language and language != "all": query = query.eq("language", language)
-        if search_keyword: query = query.ilike("main_keyword", f"%{search_keyword}%")
-        return query.execute().data
-    except Exception as e:
-        st.error(f"Błąd pobierania zadań: {str(e)}")
-        return []
-
-def get_next_queued_jobs(limit=1, campaign_id=None):
-    """Pobiera kolejne oczekujące zadania z kolejki na podstawie priorytetu."""
-    client = get_supabase_client()
-    if not client: return []
-    try:
-        query = client.table("content_jobs").select("*").eq("status", "queued").order("priority", desc=True).order("created_at", desc=False)
-        if campaign_id and campaign_id != "all":
-            query = query.eq("campaign_id", campaign_id)
-        
-        if limit is not None:
-            query = query.limit(limit)
-            
-        return query.execute().data
-    except Exception as e:
-        st.error(f"Błąd pobierania partii zadań: {str(e)}")
-        return []
-
-def update_job_status(job_id, status, error_message=None):
-    client = get_supabase_client()
-    if not client: return False
-    data = {"status": status}
-    if error_message is not None:
-        data["error_message"] = error_message
-    try:
-        client.table("content_jobs").update(data).eq("id", job_id).execute()
-        return True
-    except:
-        return False
-
-def requeue_failed_jobs(campaign_id=None):
-    """Przerzuca wszystkie zadania typu failed z powrotem do kolejki queued."""
-    client = get_supabase_client()
-    if not client: return 0
-    try:
-        query = client.table("content_jobs").update({"status": "queued", "error_message": None}).eq("status", "failed")
-        if campaign_id and campaign_id != "all":
-            query = query.eq("campaign_id", campaign_id)
-            
-        res = query.execute()
-        return len(res.data) if res.data else 0
-    except Exception as e:
-        st.error(f"Błąd podczas ponawiania błędnych zadań: {str(e)}")
-        return 0
-
-def get_job_by_id(job_id):
-    client = get_supabase_client()
-    if not client: return None
-    try:
-        res = client.table("content_jobs").select("*").eq("id", job_id).execute()
-        return res.data[0] if res.data else None
-    except:
-        return None
-
-def get_job_snapshots(job_id):
-    client = get_supabase_client()
-    if not client: return []
-    try:
-        res = client.table("job_prompt_snapshots").select("*").eq("job_id", job_id).order("step_order").execute()
-        return res.data
-    except:
-        return []
-
-def get_job_steps(job_id):
-    client = get_supabase_client()
-    if not client: return []
-    try:
-        res = client.table("content_job_steps").select("*").eq("job_id", job_id).order("step_order").execute()
-        return res.data
-    except:
-        return []
-
-def update_job_final_fields(job_id, final_html, meta_title, meta_description, faq_html):
-    client = get_supabase_client()
-    if not client: return False
-    try:
-        client.table("content_jobs").update({
-            "final_html": final_html,
-            "meta_title": meta_title,
-            "meta_description": meta_description,
-            "faq_html": faq_html,
-            "updated_at": "now()"
-        }).eq("id", job_id).execute()
-        return True
-    except Exception as e:
-        st.error(f"Błąd zapisu poprawek: {str(e)}")
-        return False
-
-def duplicate_job(job_id, status="draft"):
-    client = get_supabase_client()
-    if not client: return None
-    
-    orig_job = get_job_by_id(job_id)
-    if not orig_job: return None
-    
-    new_job_data = {
-        "campaign_id": orig_job["campaign_id"],
-        "operator_name": st.session_state.get("current_operator", "unknown"),
-        "content_type": orig_job["content_type"],
-        "language": orig_job["language"],
-        "locale": orig_job["locale"],
-        "url": orig_job["url"],
-        "is_existing_url": orig_job["is_existing_url"],
-        "main_keyword": orig_job["main_keyword"],
-        "secondary_keywords": orig_job["secondary_keywords"],
-        "target_length": orig_job["target_length"],
-        "current_content": orig_job["current_content"],
-        "additional_notes": orig_job["additional_notes"],
-        "provider": orig_job["provider"],
-        "model": orig_job["model"],
-        "priority": orig_job["priority"],
-        "status": status
-    }
-    
-    new_id = create_content_job(new_job_data)
-    if not new_id: return None
-    
-    orig_snapshots = get_job_snapshots(job_id)
-    if orig_snapshots:
-        new_snapshots = []
-        for s in orig_snapshots:
-            new_s = s.copy()
-            new_s.pop("id", None)
-            new_s.pop("created_at", None)
-            new_s["job_id"] = new_id
-            new_snapshots.append(new_s)
-        client.table("job_prompt_snapshots").insert(new_snapshots).execute()
-        
-    return new_id
-
-def create_content_job(job_data):
-    client = get_supabase_client()
-    if not client: return None
-    try:
-        res = client.table("content_jobs").insert(job_data).execute()
-        if res.data: return res.data[0]["id"]
-        return None
-    except Exception as e:
-        st.error(f"Błąd zapisu zadania: {str(e)}")
-        return None
-
-def create_prompt_snapshots_for_job(job_id, original_steps, job_step_toggles):
-    client = get_supabase_client()
-    if not client: return False
-    try:
-        snapshots = []
-        for step in original_steps:
-            is_active = job_step_toggles.get(step["id"], step["is_active"])
-            snapshot_data = {
-                "job_id": job_id,
-                "step_order": step["step_order"],
-                "step_key": step["step_key"],
-                "step_name": step["step_name"],
-                "system_prompt_snapshot": step["system_prompt"],
-                "user_prompt_snapshot": step["user_prompt"],
-                "provider": step["provider"],
-                "model": step["model"],
-                "temperature": step["temperature"],
-                "max_tokens": step["max_tokens"],
-                "is_active": is_active
-            }
-            snapshots.append(snapshot_data)
-            
-        if snapshots:
-            client.table("job_prompt_snapshots").insert(snapshots).execute()
-        return True
-    except Exception as e:
-        st.error(f"Błąd zapisu snapshotów: {str(e)}")
-        return False
-
+from services.job_repository import (
+    get_job_by_id, 
+    update_job_status, 
+    get_job_snapshots, 
+    get_next_queued_jobs
+)
+from services.strategy_repository import get_campaign_strategy
+from services.attractiveness_quality_service import analyze_attractiveness_quality
 
 # -------------------------------------------------------------------------
 # PROCESOR AI (PIPELINE ZADANIA ORAZ PARTII ZADAŃ)
+# Odizolowana od zapytań CRUD warstwa czysto decyzyjna/algorytmiczna
 # -------------------------------------------------------------------------
 
-def _replace_variables(prompt_text, job, previous_outputs):
+def _replace_variables(prompt_text, job, previous_outputs, dynamic_vars=None):
     if not prompt_text:
         return ""
     
+    if not dynamic_vars:
+        dynamic_vars = {}
+        
     replacements = {
         "{{content_type}}": str(job.get("content_type") or ""),
         "{{language}}": str(job.get("language") or ""),
@@ -232,8 +35,36 @@ def _replace_variables(prompt_text, job, previous_outputs):
         "{{current_content}}": str(job.get("current_content") or ""),
         "{{additional_notes}}": str(job.get("additional_notes") or ""),
         "{{url}}": str(job.get("url") or ""),
-        "{{is_existing_url}}": str(job.get("is_existing_url") or "")
+        "{{is_existing_url}}": str(job.get("is_existing_url") or ""),
+        "{{knowledge}}": str(dynamic_vars.get("knowledge", "")),
+        "{{knowledge_graph}}": str(dynamic_vars.get("knowledge_graph", "")),
+        "{{example_headings}}": str(dynamic_vars.get("example_headings", "")),
+        "{{headings}}": str(dynamic_vars.get("headings", "")),
+        "{{heading}}": str(dynamic_vars.get("heading", "")),
+        "{{already_written_part}}": str(dynamic_vars.get("already_written_part", "")),
+        "{{current_step_output}}": str(dynamic_vars.get("current_step_output", "")),
+        "{{context}}": str(dynamic_vars.get("context", ""))
     }
+    
+    strategy = previous_outputs.get("__strategy", {})
+    replacements.update({
+        "{{brand_description}}": str(strategy.get("brand_description") or ""),
+        "{{target_audience}}": str(job.get("target_audience_override") or strategy.get("target_audience") or ""),
+        "{{persona}}": str(job.get("persona_override") or strategy.get("persona") or ""),
+        "{{consumer_insight}}": str(strategy.get("consumer_insight") or ""),
+        "{{customer_language}}": str(strategy.get("customer_language") or ""),
+        "{{main_pain_points}}": str(strategy.get("main_pain_points") or ""),
+        "{{main_desires}}": str(strategy.get("main_desires") or ""),
+        "{{decision_triggers}}": str(strategy.get("decision_triggers") or ""),
+        "{{brand_tone}}": str(job.get("tone_override") or strategy.get("brand_tone") or ""),
+        "{{brand_archetype}}": str(strategy.get("brand_archetype") or ""),
+        "{{forbidden_phrases}}": str(strategy.get("forbidden_phrases") or ""),
+        "{{required_phrases}}": str(strategy.get("required_phrases") or ""),
+        "{{value_proposition}}": str(strategy.get("value_proposition") or ""),
+        "{{proof_points}}": str(strategy.get("proof_points") or ""),
+        "{{content_goal}}": str(job.get("content_goal") or strategy.get("content_goal") or ""),
+        "{{call_to_action}}": str(job.get("call_to_action") or strategy.get("call_to_action") or "")
+    })
     
     for key, val in replacements.items():
         prompt_text = prompt_text.replace(key, val)
@@ -277,8 +108,22 @@ def process_single_job(job_id, progress_callback=None):
     existing_steps_res = client.table("content_job_steps").select("*").eq("job_id", job_id).execute()
     existing_steps = {s["step_key"]: s for s in existing_steps_res.data}
     
-    previous_outputs = {}
+    strategy_data = get_campaign_strategy(job["campaign_id"])
+    previous_outputs = {"__strategy": strategy_data or {}}
     total_steps = len(steps)
+    
+    dynamic_vars = {
+        "knowledge": "",
+        "knowledge_graph": "",
+        "example_headings": "",
+        "headings": "",
+        "heading": "",
+        "already_written_part": "",
+        "current_step_output": "",
+        "context": ""
+    }
+    
+    last_output = ""
     
     for i, step in enumerate(steps):
         step_key = step["step_key"]
@@ -303,10 +148,91 @@ def process_single_job(job_id, progress_callback=None):
             out_text = existing_steps[step_key].get("output_text", "")
             out_json = existing_steps[step_key].get("output_json")
             previous_outputs[step_key] = out_json if out_json else out_text
+            last_output = out_text
             continue
             
-        sys_prompt = _replace_variables(step["system_prompt_snapshot"], job, previous_outputs)
-        usr_prompt = _replace_variables(step["user_prompt_snapshot"], job, previous_outputs)
+        dynamic_vars["current_step_output"] = last_output
+        
+        # Ustalenie głównych nagłówków z poprzednich etapów
+        if "seo_outline_expanded" in previous_outputs:
+            dynamic_vars["headings"] = previous_outputs["seo_outline_expanded"]
+        elif "seo_outline_h2_only" in previous_outputs:
+            dynamic_vars["headings"] = previous_outputs["seo_outline_h2_only"]
+        elif "seo_outline_questions" in previous_outputs:
+            dynamic_vars["headings"] = previous_outputs["seo_outline_questions"]
+            
+        # Pętla generująca dla seo_section_writer
+        if step_key == "seo_section_writer" and dynamic_vars["headings"]:
+            import bs4
+            soup = bs4.BeautifulSoup(dynamic_vars["headings"], "html.parser")
+            h2_tags = [h.get_text(strip=True) for h in soup.find_all("h2")]
+            if not h2_tags:
+                h2_tags = [dynamic_vars["headings"]]
+                
+            written_sections = []
+            final_text = ""
+            total_in = 0
+            total_out = 0
+            
+            for h_idx, h2 in enumerate(h2_tags):
+                dynamic_vars["heading"] = h2
+                dynamic_vars["already_written_part"] = final_text
+                
+                sys_prompt = _replace_variables(step["system_prompt_snapshot"], job, previous_outputs, dynamic_vars)
+                usr_prompt = _replace_variables(step["user_prompt_snapshot"], job, previous_outputs, dynamic_vars)
+                
+                ai_res = generate_ai_response(
+                    provider=step["provider"] or job["provider"],
+                    model=step["model"] or job["model"],
+                    system_prompt=sys_prompt,
+                    user_prompt=usr_prompt,
+                    temperature=step["temperature"],
+                    max_tokens=step["max_tokens"]
+                )
+                
+                if ai_res["success"]:
+                    # Sprytne ignorowanie nagłówków jeśli model je wygenerował mimo zakazu (często ignoruje instrukcje)
+                    clean_res = ai_res["text"].strip()
+                    if clean_res.startswith("<h2>"):
+                        soup_res = bs4.BeautifulSoup(clean_res, "html.parser")
+                        for h2_tag in soup_res.find_all("h2"):
+                            h2_tag.extract()
+                        clean_res = str(soup_res).strip()
+                        
+                    final_text += f"<h2>{h2}</h2>\n{clean_res}\n\n"
+                    total_in += ai_res.get("input_tokens", 0)
+                    total_out += ai_res.get("output_tokens", 0)
+                else:
+                    error_msg = f"Przerwano na etapie '{step_key}' (nagłówek: {h2}): {ai_res['error']}"
+                    update_job_status(job_id, "failed", error_msg)
+                    return False, error_msg
+                    
+            step_record = {
+                "job_id": job_id, "step_order": step["step_order"],
+                "step_key": step_key, "step_name": step["step_name"],
+                "provider": step["provider"] or job["provider"],
+                "model": step["model"] or job["model"],
+                "system_prompt_used": sys_prompt, "user_prompt_used": usr_prompt, # zapisuje tylko ostatni
+                "input_tokens": total_in, "output_tokens": total_out,
+                "status": "completed",
+                "output_text": final_text.strip(),
+                "completed_at": "now()"
+            }
+            
+            previous_outputs[step_key] = final_text.strip()
+            last_output = final_text.strip()
+            
+            if step_key in existing_steps:
+                client.table("content_job_steps").update(step_record).eq("id", existing_steps[step_key]["id"]).execute()
+            else:
+                res_ins = client.table("content_job_steps").insert(step_record).execute()
+                if res_ins.data:
+                    existing_steps[step_key] = res_ins.data[0]
+            continue
+            
+        # Zwykłe (pojedyncze) wywołanie etapu
+        sys_prompt = _replace_variables(step["system_prompt_snapshot"], job, previous_outputs, dynamic_vars)
+        usr_prompt = _replace_variables(step["user_prompt_snapshot"], job, previous_outputs, dynamic_vars)
         
         ai_res = generate_ai_response(
             provider=step["provider"] or job["provider"],
@@ -343,6 +269,7 @@ def process_single_job(job_id, progress_callback=None):
                     pass 
                     
             previous_outputs[step_key] = parsed_json if parsed_json else ai_res["text"]
+            last_output = ai_res["text"]
             
             if step_key in existing_steps:
                 client.table("content_job_steps").update(step_record).eq("id", existing_steps[step_key]["id"]).execute()
@@ -373,6 +300,12 @@ def process_single_job(job_id, progress_callback=None):
     # Mapowanie outputów
     if "html_cleanup" in previous_outputs: 
         final_fields["final_html"] = previous_outputs["html_cleanup"]
+    elif "html_formatting" in previous_outputs:
+        final_fields["final_html"] = previous_outputs["html_formatting"]
+    elif "attractiveness_optimization" in previous_outputs:
+        final_fields["final_html"] = previous_outputs["attractiveness_optimization"]
+    elif "seo_section_writer" in previous_outputs: 
+        final_fields["final_html"] = previous_outputs["seo_section_writer"]
     elif "main_content" in previous_outputs: 
         final_fields["final_html"] = previous_outputs["main_content"]
         
@@ -390,7 +323,7 @@ def process_single_job(job_id, progress_callback=None):
     if "meta_description" in previous_outputs: 
         final_fields["meta_description"] = previous_outputs["meta_description"]
         
-    # Przetwarzanie QA (Analiza Regułowa i połączenie z QA od LLM)
+    # Przetwarzanie QA (Analiza Regułowa)
     qa_report = analyze_seo_quality(job, final_fields.get("final_html", ""))
     
     if "seo_qa" in previous_outputs:
@@ -400,6 +333,23 @@ def process_single_job(job_id, progress_callback=None):
         }
     else:
         final_fields["seo_report_json"] = {"rules_qa": qa_report}
+        
+    attr_qa = previous_outputs.get("attractiveness_qa")
+    if attr_qa and isinstance(attr_qa, dict):
+        final_fields["attractiveness_score"] = attr_qa.get("overall_score", 0)
+        final_fields["attractiveness_report_json"] = {
+            "ai_report": attr_qa,
+            "rules_qa": analyze_attractiveness_quality(job, final_fields.get("final_html", ""), strategy_data)
+        }
+    elif attr_qa:
+        final_fields["attractiveness_report_json"] = {
+            "ai_report": {"raw": attr_qa},
+            "rules_qa": analyze_attractiveness_quality(job, final_fields.get("final_html", ""), strategy_data)
+        }
+    else:
+        final_fields["attractiveness_report_json"] = {
+            "rules_qa": analyze_attractiveness_quality(job, final_fields.get("final_html", ""), strategy_data)
+        }
         
     client.table("content_jobs").update(final_fields).eq("id", job_id).execute()
     

@@ -1,5 +1,6 @@
 import streamlit as st
-from services.job_service import create_content_job, create_prompt_snapshots_for_job, get_campaign_prompt_sets, get_prompt_steps_for_set
+from services.job_repository import create_content_job, create_prompt_snapshots_for_job
+from services.prompt_service import get_campaign_prompt_sets, get_campaign_prompt_steps
 from services.campaign_service import get_campaign_by_id
 from utils.constants import CONTENT_TYPES, LOCALES, PROVIDERS, MODELS_BY_PROVIDER
 
@@ -31,7 +32,7 @@ def render():
     selected_set = next(s for s in prompt_sets if s["id"] == selected_set_id)
     
     # Natychmiastowe dociągnięcie kroków dla wybranego setu
-    steps = get_prompt_steps_for_set(selected_set_id)
+    steps = get_campaign_prompt_steps(selected_set_id)
     
     st.divider()
     
@@ -71,8 +72,25 @@ def render():
         current_content = st.text_area("Istniejąca treść (do zadania typu 'Rewrite' lub 'Optymalizacja')", height=150)
         additional_notes = st.text_area("Dodatkowe wytyczne dla AI (będą wstrzyknięte do analizy)", placeholder="Napisz luzem. Zwróć uwagę na ton marki...")
         
+        # Sekcja: Tryb i Strategia
+        st.markdown("#### 4. Atrakcyjność i Skuteczność Tekstu (Opcjonalnie)")
+        gen_mode_opts = {
+            "seo_and_attractiveness": "SEO + Atrakcyjność (Pełny Pipeline)",
+            "seo_only": "Tylko SEO (Szybkie i Klasyczne)",
+            "attractiveness_only": "Tylko Atrakcyjność (np. dla istniejących tekstów)",
+            "quick_content": "Szybki tekst (Zoptymalizowany Pipeline)"
+        }
+        generation_mode = st.selectbox("Tryb generowania", list(gen_mode_opts.keys()), format_func=lambda x: gen_mode_opts[x])
+        
+        with st.expander("Nadpisz strategię kampanii dla tego konkretnego zadania"):
+            content_goal = st.text_input("Cel tekstu (np. sprzedaż, edukacja)")
+            call_to_action = st.text_input("Call To Action (CTA)")
+            target_audience_override = st.text_input("Grupa docelowa (Nadpisz)")
+            persona_override = st.text_input("Persona (Nadpisz)")
+            tone_override = st.text_input("Ton (Nadpisz)")
+        
         # Sekcja: Globalne ustawienia nadpisujące z kampanii
-        st.markdown("#### 4. Parametry wykonawcze")
+        st.markdown("#### 5. Parametry wykonawcze")
         p1, p2, p3 = st.columns([2, 2, 1])
         
         # Domyślne mapowanie z samej kampanii jako 'podpowiedź', choć per krok mogą być inne
@@ -86,14 +104,27 @@ def render():
         priority = p3.number_input("Priorytet (Wyższy = szybszy start)", min_value=0, max_value=100, value=0)
         
         # Sekcja: Pipeline (Modyfikacja w locie)
-        st.markdown("#### 5. Przegląd i selekcja etapów (Pipeline)")
-        st.info("Poniżej znajduje się lista kroków dla tego zestawu. Możesz wyłączyć poszczególne etapy tylko dla tego konkretnego zadania.")
+        st.markdown("#### 6. Przegląd i selekcja etapów (Pipeline)")
+        st.info("Poniżej znajduje się lista kroków dla tego zestawu. Checkboxy zostały dostosowane na podstawie wybranego Trybu Generowania.")
         
         for step in steps:
+            sg = step.get("stage_group", "seo")
+            default_active = step["is_active"]
+            
+            if generation_mode == "seo_only" and sg == "attractiveness":
+                default_active = False
+            elif generation_mode == "attractiveness_only" and sg == "seo":
+                if step["step_key"] not in ["main_content", "html_cleanup"]:
+                    default_active = False
+            elif generation_mode == "quick_content":
+                quick_keys = ["audience_insight", "persuasion_strategy", "main_content", "attractiveness_optimization", "html_cleanup", "seo_qa", "attractiveness_qa"]
+                if step["step_key"] not in quick_keys:
+                    default_active = False
+            
             # Renderujemy standardowe checkboxy, Streamlit sczyta ich status w momencie kliknięcia w submit
             st.checkbox(
-                f"[{step['step_order']}] {step['step_name']}", 
-                value=step["is_active"], 
+                f"[{step['step_order']}] {step['step_name']} ({sg.upper()})", 
+                value=default_active, 
                 key=f"step_toggle_{step['id']}"
             )
             
@@ -129,7 +160,13 @@ def render():
                     "provider": provider,
                     "model": model,
                     "status": status,
-                    "priority": priority
+                    "priority": priority,
+                    "generation_mode": generation_mode,
+                    "content_goal": content_goal.strip() if content_goal.strip() else None,
+                    "call_to_action": call_to_action.strip() if call_to_action.strip() else None,
+                    "target_audience_override": target_audience_override.strip() if target_audience_override.strip() else None,
+                    "persona_override": persona_override.strip() if persona_override.strip() else None,
+                    "tone_override": tone_override.strip() if tone_override.strip() else None
                 }
                 
                 job_id = create_content_job(job_data)

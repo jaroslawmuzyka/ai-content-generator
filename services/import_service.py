@@ -1,7 +1,8 @@
 import pandas as pd
 import io
 import streamlit as st
-from services.job_service import create_content_job, create_prompt_snapshots_for_job, get_prompt_steps_for_set
+from services.job_repository import create_content_job, create_prompt_snapshots_for_job
+from services.prompt_service import get_campaign_prompt_steps
 from utils.constants import CONTENT_TYPES, PROVIDERS
 
 EXPECTED_COLUMNS = [
@@ -152,7 +153,7 @@ def process_import(valid_records, campaign_id, prompt_set_id, status, operator_n
     Otrzymuje w 100% zwalidowane rekordy i tworzy z nich fizyczne obiekty w bazie danych.
     Kopiuje prompt_snapshots dla uodpornienia zadań na późniejsze zmiany w kampanii.
     """
-    steps = get_prompt_steps_for_set(prompt_set_id)
+    steps = get_campaign_prompt_steps(prompt_set_id)
     if not steps:
         return False, "Krytyczny Błąd: Wybrany zestaw promptów (szablon AI) nie posiada żadnych kroków do sklonowania."
         

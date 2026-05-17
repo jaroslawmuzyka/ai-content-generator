@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from services.campaign_service import get_campaigns
-from services.job_service import get_campaign_prompt_sets
+from services.prompt_service import get_campaign_prompt_sets
 from services.import_service import generate_template_bytes, validate_uploaded_file, process_import
 
 def render():

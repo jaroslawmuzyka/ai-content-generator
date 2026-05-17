@@ -88,6 +88,7 @@ def generate_export_xlsx(jobs, steps):
     meta_data = []
     faq_data = []
     seo_qa_data = []
+    attr_qa_data = []
     errors_data = []
     
     # 1. Pętle transformacji głównego strumienia Jobsów
@@ -134,6 +135,13 @@ def generate_export_xlsx(jobs, steps):
             "seo_report_json": json.dumps(job.get("seo_report_json"), ensure_ascii=False) if job.get("seo_report_json") else ""
         })
         
+        attr_qa_data.append({
+            "id": job["id"],
+            "main_keyword": job["main_keyword"],
+            "attractiveness_score": job.get("attractiveness_score", ""),
+            "attractiveness_report_json": json.dumps(job.get("attractiveness_report_json"), ensure_ascii=False) if job.get("attractiveness_report_json") else ""
+        })
+        
         # Jeśli job zgasł na błędzie, spróbuj przypiąć do tego arkusza "Error" winowajcę
         if job["status"] == "failed" and job.get("error_message"):
             failed_step = next((s["step_name"] for s in steps if s["job_id"] == job["id"] and s["status"] == "failed"), "Nieznany krok")
@@ -168,6 +176,7 @@ def generate_export_xlsx(jobs, steps):
     df_meta = pd.DataFrame(meta_data)
     df_faq = pd.DataFrame(faq_data)
     df_seo = pd.DataFrame(seo_qa_data)
+    df_attr = pd.DataFrame(attr_qa_data)
     df_steps = pd.DataFrame(steps_data)
     df_errors = pd.DataFrame(errors_data)
     
@@ -179,6 +188,7 @@ def generate_export_xlsx(jobs, steps):
             "meta": df_meta,
             "faq": df_faq,
             "seo_qa": df_seo,
+            "attractiveness_qa": df_attr,
             "steps": df_steps,
             "errors": df_errors
         }

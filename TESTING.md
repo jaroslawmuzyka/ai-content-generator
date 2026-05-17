@@ -13,22 +13,35 @@ Pełny plan weryfikacji aplikacji przed oddaniem jej pierwszemu zespołowi i pub
 - [ ] Przejdź do zakładki "Ustawienia".
 - [ ] Upewnij się, że w sekcji "Diagnostyka połączeń" status bazy świeci na zielono.
 
-## Sekcja 3: Kampanie
+## Sekcja 3: Kampanie i Strategia
 - [ ] Przejdź do "Kampanie". 
 - [ ] Utwórz nową kampanię, nadaj jej nazwę i parametry domyślne (np. Openrouter, EN).
 - [ ] Edytuj opis kampanii z poziomu UI – sprawdź czy zmiany zapisują się w bazie i są natychmiast widoczne po przeładowaniu siatki.
 - [ ] Zmień status kampanii na archiwalny. Otwórz moduł "Nowe Zadanie" i sprawdź, czy archiwalna kampania znika z głównej listy rozwijanej.
+- [ ] Przejdź do zakładki "Strategia Treści". Wybierz utworzoną kampanię.
+- [ ] Wypełnij przykładowy "Insight konsumencki" oraz "Call To Action" i zapisz strategię. Zweryfikuj pojawienie się komunikatu sukcesu.
 
 ## Sekcja 4: Prompty
 - [ ] Przejdź do "Prompty".
 - [ ] W panelu z lewej strony rozwiń "Szablony Systemowe (Domyślne)". Jeśli jest ich 0, przejdź do Ustawień i kliknij "Zainicjuj domyślne prompty".
 - [ ] Wybierz z prawej strony dowolną pustą (nowo utworzoną) kampanię.
-- [ ] Użyj przycisku klonowania, aby skopiować zestaw domyślny na poczet tej kampanii.
+- [ ] Użyj przycisku klonowania, aby skopiować zestaw domyślny na poczet tej kampanii (v2 z atrakcyjnością).
+- [ ] Użyj przycisków radiowych "Filtruj grupę etapów", aby zweryfikować czy widok poprawnie odfiltrowuje etapy (np. wyświetla tylko etapy SEO, tylko Atrakcyjność).
 - [ ] Wyedytuj "User Prompt" w dowolnym kroku w kampanii, zapisz i upewnij się, że zmiana dotyczy *tylko* tej kampanii (domyślne szablony w bazie pozostają czyste).
+- [ ] Sprawdź, czy wyświetla się podpowiedź o tagach XML i prawidłowym formacie (Rola, Cel...).
+- [ ] Sprawdź, czy można edytować nowo wgrany system_prompt i user_prompt.
+- [ ] Zweryfikuj, czy `{{language}}`, `{{main_keyword}}` itp. parsują się bez błędów dla typowego zadania.
+- [ ] Sprawdź, czy działa pętla w `seo_section_writer`. Dla wygenerowanego nagłówka z kroku `outline`, system pyta API N razy, a w wynikach widzimy scalony tekst.
+- [ ] Sprawdź, czy brak `{{headings}}` nie wysypuje zadania (fallback na zwykłe wykonanie kroku lub po prostu jeden h2).
+- [ ] Upewnij się, że tagi XML (`<fraza_główna>`) faktycznie pojawiają się jako tekst z podmienionymi wartościami w `content_job_steps` (zakładka Logi / Prompty).
 
-## Sekcja 5: Nowe zadanie
+## Sekcja 5: Nowe zadanie i Tryby Generowania
 - [ ] Wejdź w "Nowe zadanie". Sprawdź komunikaty ostrzegawcze, gdy nie wybierzesz kampanii z lewego menu, lub kampania nie ma przypisanych promptów roboczych.
-- [ ] Uzupełnij formularz wpisując frazę główną i spróbuj zapisać jako "Draft" – po zapisie zadanie NIE powinno wejść w stan gotowości.
+- [ ] Uzupełnij formularz wpisując frazę główną.
+- [ ] Zmień "Tryb generowania" na "Tylko SEO (Szybkie i Klasyczne)". Przewiń na dół i sprawdź, czy checkboxy dotyczące "Atrakcyjności" (np. Insight Odbiorcy, Optymalizacja Atrakcyjności) odznaczyły się automatycznie.
+- [ ] Zmień "Tryb generowania" na "Szybki tekst". Sprawdź, czy zbędne kroki zostały odznaczone.
+- [ ] Wpisz coś w zakładce "Nadpisz strategię kampanii dla tego konkretnego zadania" (np. Cel tekstu).
+- [ ] Spróbuj zapisać jako "Draft" – po zapisie zadanie NIE powinno wejść w stan gotowości.
 - [ ] Ponów próbę z nową frazą, i zapisz je jako "Dodaj do kolejki".
 
 ## Sekcja 6: Kolejka
@@ -42,10 +55,12 @@ Pełny plan weryfikacji aplikacji przed oddaniem jej pierwszemu zespołowi i pub
 - [ ] System zamiast krwawego Crashu, musi oflagować zadanie statusem `failed`, a pętla powinna bez problemu przejść do kolejnego zadania.
 - [ ] Ustaw "Target length" w zadaniu na olbrzymią wartość, a limit tokenów na bardzo mały, by model sprowokował dziwne zwrócenie danych. Upewnij się, że ostateczny błąd zapisał się w zakładce Wyniki i Dashboard.
 
-## Sekcja 8: Wyniki i QA SEO
+## Sekcja 8: Wyniki i Skuteczność Tekstu
 - [ ] Wejdź do zakładki "Wyniki". Zmień pole filtru z `completed` na `all` albo wklep fragment Słowa Kluczowego w Wyszukiwarkę, żeby złapać przetestowany rekord.
 - [ ] Wejdź w sekcję HTML i wykonaj ręczną edycję finalnego tekstu, dodając literówkę do meta title. Kliknij przycisk zapisu i zweryfikuj czy dane w bazie również się zaktualizowały.
-- [ ] Przejdź na trzecią zakładkę w wynikach ("Historia"). Sprawdź tabelę "QA Regułowe" – czy poprawnie obliczyła liczbę zrzuconych znaków? Czy zauważyła wszystkie wstawione nagłówki H2? 
+- [ ] Przejdź na zakładkę "Skuteczność (Atrakcyjność)". 
+- [ ] Zweryfikuj, czy pojawiła się Ogólna ocena AI (np. 8/10) oraz czy system poprawnie odczytał Reguły Marketingowe (np. wykrył Call To Action).
+- [ ] Przejdź na zakładkę "Historia i Logi AI". Sprawdź tabelę "QA Regułowe" – czy poprawnie obliczyła liczbę zrzuconych znaków? Czy zauważyła wszystkie wstawione nagłówki H2? 
 
 ## Sekcja 9: Import XLSX
 - [ ] Wejdź w moduł "Import XLSX" i kliknij duży guzik do pobrania Szablonu.
@@ -57,7 +72,7 @@ Pełny plan weryfikacji aplikacji przed oddaniem jej pierwszemu zespołowi i pub
 ## Sekcja 10: Eksport XLSX
 - [ ] Przejdź do modułu "Eksport". Ustaw filtry na status `completed`.
 - [ ] Opcjonalnie zmniejsz datę od-do. Kliknij "Generuj XLSX".
-- [ ] Otwórz pobrany plik na dysku. Powinien zawierać u dołu kilka posegregowanych zakładek (final_contents, meta, faq, steps, errors). Górny wiersz z nazwami powinien być zamrożony.
+- [ ] Otwórz pobrany plik na dysku. Powinien zawierać u dołu kilka posegregowanych zakładek (final_contents, meta, faq, seo_qa, attractiveness_qa, steps, errors). Górny wiersz z nazwami powinien być zamrożony.
 - [ ] Wróć do aplikacji, na samą górę modułu, wejdź w zakładkę "Historia Pobierań". Znajdź tam własny wygenerowany plik i rozwiń JSONa z logami filtrów, by upewnić się co do celów audytowych.
 
 ## Sekcja 11: Przypadki błędów (Timeout Recovery)

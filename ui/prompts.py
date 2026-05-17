@@ -24,7 +24,16 @@ def render():
         * `{{additional_notes}}`
         * `{{url}}`
         * `{{is_existing_url}}`
+        * `{{knowledge}}`
+        * `{{knowledge_graph}}`
+        * `{{example_headings}}`
+        * `{{headings}}`
+        * `{{heading}}`
+        * `{{already_written_part}}`
         * `{{previous_steps.NAZWA_KROKU}}` (np. `{{previous_steps.outline}}`)
+        * `{{current_step_output}}`
+        * `{{context}}`
+        * `{{target_audience}}`, `{{persona}}`, `{{consumer_insight}}`, `{{brand_tone}}`, `{{forbidden_phrases}}`, `{{required_phrases}}`, `{{content_goal}}`, `{{call_to_action}}`
         """)
         
     active_camp_id = st.session_state.get("active_campaign_id")
@@ -94,16 +103,26 @@ def render():
             
     st.markdown("---")
     st.subheader("Lista Etapów (Kroków Generowania)")
+    st.info("Zalecany styl promptu: Rola → Główny cel → Dane wejściowe → Proces działania → Zasady → Zakazy → Format odpowiedzi → Kontrola końcowa. Dane wejściowe umieszczaj w tagach XML-like, np. `<fraza_główna>{{main_keyword}}</fraza_główna>`.")
     
     steps = get_campaign_prompt_steps(selected_camp_set_id)
     if not steps:
         st.error("Wystąpił problem techniczny, brak kroków przypisanych do tego zestawu.")
         return
         
+    filter_group = st.radio("Filtruj grupę etapów:", ["Wszystkie", "SEO", "Atrakcyjność tekstu", "Techniczne"], horizontal=True)
+        
     # Pętla przez kroki z użyciem Expandera
     for step in steps:
+        sg = step.get("stage_group", "seo")
+        if filter_group == "SEO" and sg != "seo": continue
+        if filter_group == "Atrakcyjność tekstu" and sg != "attractiveness": continue
+        if filter_group == "Techniczne" and sg != "technical": continue
+        
+        group_badge = "SEO" if sg == "seo" else "ATRAKCYJNOŚĆ" if sg == "attractiveness" else "TECHNICZNE"
+        
         header_icon = "🟢" if step['is_active'] else "⚫ (WYŁĄCZONY)"
-        expander_title = f"{header_icon} Krok {step['step_order']}: {step['step_name']} | {step['provider']} ({step['model']})"
+        expander_title = f"{header_icon} Krok {step['step_order']}: {step['step_name']} [{group_badge}] | {step['provider']} ({step['model']})"
         
         with st.expander(expander_title):
             # Przełącznik aktywności on_change (bez st.form dla bezpieczeństwa natychmiastowego zapisu)

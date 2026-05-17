@@ -14,7 +14,7 @@ from core.session import init_session_state
 
 # Importy widoków
 from ui import (
-    dashboard, campaigns, prompts, new_job, 
+    dashboard, campaigns, strategy, prompts, new_job, 
     import_xlsx, queue, results, export, settings
 )
 
@@ -43,6 +43,7 @@ def main():
         menu_options = {
             "📊 Dashboard": dashboard.render,
             "📂 Kampanie": campaigns.render,
+            "🎯 Strategia treści": strategy.render,
             "📝 Prompty": prompts.render,
             "➕ Nowe zadanie": new_job.render,
             "📥 Import XLSX": import_xlsx.render,

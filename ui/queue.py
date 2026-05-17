@@ -1,5 +1,7 @@
 import streamlit as st
-from services.job_service import get_content_jobs, update_job_status, process_single_job, process_job_batch, requeue_failed_jobs
+from services.job_repository import get_content_jobs, update_job_status, requeue_failed_jobs
+from services.job_processor import process_single_job, process_job_batch
+from utils.constants import JOB_STATUSES
 from services.campaign_service import get_campaigns
 
 def render():
@@ -16,7 +18,7 @@ def render():
         
     c1, c2, c3, c4 = st.columns(4)
     f_camp = c1.selectbox("Wybierz kampanię", list(camp_options.keys()), format_func=lambda x: camp_options[x])
-    f_status = c2.selectbox("Filtruj status", ["all", "queued", "draft", "processing", "completed", "failed", "interrupted"])
+    f_status = c2.selectbox("Filtruj status", JOB_STATUSES)
     f_ctype = c3.selectbox("Typ treści", ["all", "ecommerce_category", "ecommerce_product", "blog_post", "landing_page"])
     f_lang = c4.selectbox("Język", ["all", "pl", "en", "de", "cs", "sk"])
     
@@ -174,7 +176,7 @@ def _run_job_ui(job_id):
         status_text.info(f"Oczekuję na AI w etapie: **{step_name}** ({current+1} / {total})")
         
     with st.spinner("AI przetwarza kroki. Proszę nie odświeżać karty przeglądarki..."):
-        from services.job_service import process_single_job
+        from services.job_processor import process_single_job
         success, msg = process_single_job(job_id, on_progress)
         
     if success:

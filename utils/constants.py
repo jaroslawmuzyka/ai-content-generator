@@ -50,3 +50,15 @@ DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
     "openrouter": "anthropic/claude-3.5-sonnet"
 }
+
+# Standaryzacja statusów w aplikacji
+JOB_STATUSES = [
+    "all",
+    "queued",
+    "processing",
+    "needs_review",
+    "completed",
+    "failed",
+    "draft",
+    "interrupted"
+]

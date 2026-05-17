@@ -1,6 +1,7 @@
 import streamlit as st
 import json
-from services.job_service import get_content_jobs, get_job_steps, update_job_status, update_job_final_fields, duplicate_job
+from services.job_repository import get_content_jobs, get_job_steps, update_job_status, update_job_final_fields, duplicate_job
+from utils.constants import JOB_STATUSES
 from services.campaign_service import get_campaigns
 
 def render():
@@ -18,7 +19,7 @@ def render():
     f_camp = c1.selectbox("Wybierz kampanię", list(camp_options.keys()), format_func=lambda x: camp_options[x], key="res_f_camp")
     
     # Domyślnie na "completed" by nie czytać śmieci
-    f_status = c2.selectbox("Filtruj status", ["all", "completed", "needs_review", "queued", "failed", "processing", "draft", "interrupted"], index=1, key="res_f_status")
+    f_status = c2.selectbox("Filtruj status", JOB_STATUSES, index=JOB_STATUSES.index("completed") if "completed" in JOB_STATUSES else 0, key="res_f_status")
     f_ctype = c3.selectbox("Typ treści", ["all", "ecommerce_category", "ecommerce_product", "blog_post", "landing_page"], key="res_f_ctype")
     f_lang = c4.selectbox("Język", ["all", "pl", "en", "de", "cs", "sk"], key="res_f_lang")
     
@@ -55,7 +56,7 @@ def render():
     # ------------------------------------------------------------------
     # PANELE GŁÓWNE
     # ------------------------------------------------------------------
-    tab1, tab2, tab3 = st.tabs(["📝 Wyniki i Korekta", "👁️ Podgląd Wyglądu (Preview)", "🕰️ Historia Kroków i Logi AI"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📝 Wyniki i Korekta", "👁️ Podgląd Wyglądu", "🎯 Skuteczność (Atrakcyjność)", "🕰️ Historia i Logi AI"])
     
     # TAB 1: Edycja surowego kodu HTML i Metadanych
     with tab1:
@@ -115,9 +116,46 @@ def render():
             st.markdown("---")
             st.markdown("### FAQ")
             st.markdown(safe_faq, unsafe_allow_html=True)
-
-    # TAB 3: Szczegółowe metadane (QA, Logi per krok)
+            
+    # TAB 3: Oceny Atrakcyjności
     with tab3:
+        st.subheader("Ocena Atrakcyjności Tekstu")
+        
+        attr_score = job.get("attractiveness_score")
+        if attr_score is not None:
+            st.metric("Ogólna ocena AI (Skuteczność / Atrakcyjność)", f"{attr_score}/10")
+        else:
+            st.info("Brak oceny atrakcyjności (zadanie wygenerowane w trybie SEO-only lub z pominięciem audytu).")
+            
+        attr_report = job.get("attractiveness_report_json")
+        if attr_report:
+            rules_qa = attr_report.get("rules_qa", {})
+            st.markdown("### Reguły Marketingowe")
+            
+            has_cta = rules_qa.get("has_cta")
+            st.metric("Wykryte Call To Action", "TAK" if has_cta else "NIE")
+            
+            generic_found = rules_qa.get("generic_phrases_found", [])
+            if generic_found:
+                st.warning(f"⚠️ Wykryto puste ogólniki (znaleziska z czarnej listy): {', '.join(generic_found)}")
+            else:
+                st.success("Wspaniale! Nie wykryto pustych ogólników w stylu AI.")
+                
+            forbidden = rules_qa.get("forbidden_phrases_found", [])
+            if forbidden:
+                st.error(f"🚨 Wykryto ZAKAZANE frazy: {', '.join(forbidden)}")
+                
+            required = rules_qa.get("required_phrases_missing", [])
+            if required:
+                st.warning(f"Brakujące wymagane frazy: {', '.join(required)}")
+                
+            ai_report = attr_report.get("ai_report")
+            if ai_report:
+                with st.expander("📝 Pełny audyt Atrakcyjności (AI JSON)"):
+                    st.json(ai_report)
+
+    # TAB 4: Szczegółowe metadane (QA, Logi per krok)
+    with tab4:
         st.subheader("Parametry początkowe zlecenia")
         c1, c2 = st.columns(2)
         c1.write(f"**Data zlecenia:** `{job.get('created_at')}`")
