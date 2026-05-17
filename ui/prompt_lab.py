@@ -19,7 +19,22 @@ def _init():
 
 
 def _lab(): return st.session_state["prompt_lab"]
-def _cur(): iters = _lab()["iterations"]; return iters[-1] if iters else None
+
+def _cur():
+    """Zwraca ostatni? iteracj? z wynikami (pomija pending bez outputs)."""
+    iters = _lab()["iterations"]
+    for it in reversed(iters):
+        if it.get("outputs"):  # ma wyniki testu
+            return it
+    return None
+
+def _pending():
+    """Zwraca nast?pn? iteracj? czekaj?c? na uruchomienie testu."""
+    iters = _lab()["iterations"]
+    for it in reversed(iters):
+        if it.get("pending_test") and not it.get("outputs"):
+            return it
+    return None
 def _sc(s): return "🟢" if s >= 8 else ("🟡" if s >= 5 else "🔴")
 def _vl(v): return {"excellent":"Doskonały","good":"Dobry","needs_improvement":"Wymaga poprawy","poor":"Słaby"}.get(v, v)
 
@@ -85,7 +100,41 @@ def render():
     # TAB 1 — TEST MANUALNY
     # =========================================================
     with tab_manual:
-        st.subheader("Uruchom jedną iterację ręcznie")
+        # ── Banner: pending iteration waiting for test ──────────────
+        pending = _pending()
+        if pending:
+            st.success(f"### 📢 Iteracja {pending['number']} gotowa z ulepszonymi promptami!")
+            st.info("Poniżej znajdziesz dane testowe z poprzedniej rundy. Kliknij 'Uruchom test', "
+                    "aby przetestować ulepszone prompty — nie musisz nic zmieniać.")
+            job_prev = _lab()["test_job"]
+            prov_prev = _lab()["provider"]
+            mdl_prev = _lab()["model"]
+            st.caption(f"🔑 Fraza: **{job_prev.get('main_keyword','')}** | "
+                       f"Typ: **{job_prev.get('content_type','')}** | "
+                       f"Model: **{mdl_prev}** | "
+                       f"Kroków z ulepszonymi promptami: **{len(pending['prompts'])}**")
+
+            from services.prompt_lab_service import _prompts_to_steps
+            if st.button(f"▶ Uruchom Iterację {pending['number']} z ulepszonymi promptami",
+                         type="primary", use_container_width=True):
+                steps_pending = _prompts_to_steps(pending["prompts"])
+                ph = st.empty(); bar = st.progress(0)
+                def pcb_p(n, i, t): bar.progress((i+1)/max(t,1)); ph.info(f"⏳ {i+1}/{t}: {n}")
+                with st.spinner("Pipeline w toku..."):
+                    outputs = run_lab_pipeline(steps_pending, job_prev, prov_prev, mdl_prev,
+                                              _lab()["strategy_data"], pcb_p)
+                bar.empty(); ph.empty()
+                pending["outputs"] = outputs
+                pending["pending_test"] = False
+                st.success(f"✅ Iteracja {pending['number']} uruchomiona! Przejdź do '📊 Wyniki i Ocena'.")
+                st.rerun()
+
+            st.divider()
+            st.subheader("Lub uruchom nową sesję (inne dane testowe / inny zestaw)")
+
+        else:
+            st.subheader("Uruchom jednorazowy test")
+
         sel_camp = st.selectbox("Kampania:", list(camp_opts.keys()),
                                 format_func=lambda x: camp_opts[x], key="m_camp")
         sets = get_campaign_prompt_sets(sel_camp)
@@ -96,11 +145,11 @@ def render():
             sel_set = st.selectbox("Zestaw promptów:", list(set_opts.keys()),
                                    format_func=lambda x: set_opts[x], key="m_set")
             st.divider()
-            main_kw, sec_kw, ct, lang, locale, tlen, notes, cur = _job_form("m")
+            main_kw, sec_kw, ct, lang, locale, tlen, notes, cur_content = _job_form("m")
             prov, mdl = _provider_form("m")
             st.divider()
             iter_n = len(_lab()["iterations"]) + 1
-            if st.button(f"▶ Uruchom test — Iteracja {iter_n}", type="primary", use_container_width=True):
+            if st.button(f"▶ Uruchom nową Iterację {iter_n} (z bazy promptów)", type="secondary", use_container_width=True):
                 if not main_kw.strip():
                     st.error("Fraza główna jest wymagana.")
                     st.stop()
@@ -109,7 +158,7 @@ def render():
                     st.error("Brak kroków w zestawie.")
                     st.stop()
                 strategy = get_campaign_strategy(sel_camp)
-                job = _build_job(main_kw, sec_kw, ct, lang, locale, tlen, notes, cur, prov, mdl)
+                job = _build_job(main_kw, sec_kw, ct, lang, locale, tlen, notes, cur_content, prov, mdl)
                 prompts_snap = {
                     s["step_key"]: {"system": s["system_prompt"], "user": s["user_prompt"],
                                     "step_name": s["step_name"], "step_order": s["step_order"],
@@ -129,7 +178,7 @@ def render():
                     "number": iter_n, "prompts": prompts_snap,
                     "outputs": outputs, "evaluations": {}, "proposals": {}, "auto": False
                 })
-                st.success(f"✅ Iteracja {iter_n} zakończona! Przejdź do 'Wyniki i Ocena'.")
+                st.success(f"✅ Iteracja {iter_n} zakończona! Przejdź do '📊 Wyniki i Ocena'.")
                 st.rerun()
 
     # =========================================================
@@ -363,12 +412,25 @@ def render():
                                                        "user": p.get("improved_user_prompt", info["user"])}
                                 else:
                                     new_prompts[sk] = dict(info)
+                            next_num = cur["number"] + 1
                             _lab()["iterations"].append({
-                                "number": cur["number"]+1, "prompts": new_prompts,
+                                "number": next_num, "prompts": new_prompts,
                                 "outputs": {}, "evaluations": {}, "proposals": {}, "pending_test": True
                             })
-                            st.success("Iteracja przygotowana! Wróć do 'Test manualny' i uruchom pipeline.")
+                            st.session_state["lab_next_iter_ready"] = next_num
                             st.rerun()
+
+        # Banner po zatwierdzeniu (poza blokiem proposals)
+        if st.session_state.get("lab_next_iter_ready"):
+            next_n = st.session_state["lab_next_iter_ready"]
+            st.divider()
+            st.success(f"✅ Iteracja {next_n} przygotowana z ulepszonymi promptami!")
+            st.info("⬆️ **Co teraz?** Przejdź do pierwszej zakładki **'⚙️ Test manualny'** "
+                    f"i kliknij '▶ Uruchom Iterację {next_n} z ulepszonymi promptami'. "
+                    "Dane testowe z poprzedniej rundy są już zapisane.")
+            if st.button("🗑️ Zamknij tę informację"):
+                st.session_state["lab_next_iter_ready"] = None
+                st.rerun()
 
     # =========================================================
     # TAB 5 — HISTORIA
@@ -379,23 +441,116 @@ def render():
             st.info("Brak historii.")
         else:
             st.subheader("Historia wszystkich iteracji")
+
+            # ── Summary table ─────────────────────────────────────────
             rows = []
             for it in iters:
-                ev = it.get("evaluations",{})
-                sc = [e.get("score",0) for e in ev.values() if isinstance(e,dict) and "score" in e]
+                ev = it.get("evaluations", {})
+                sc = [e.get("score", 0) for e in ev.values() if isinstance(e, dict) and "score" in e]
                 rows.append({
                     "Iteracja": it["number"],
                     "Tryb": "🔄 Auto" if it.get("auto") else "✋ Ręczny",
-                    "Avg score": f"{sum(sc)/len(sc):.1f}" if sc else "—",
-                    "Ocenione": len(sc),
-                    "Ulepszone": len(it.get("proposals",{})),
-                    "Status": "⏳ Czeka" if it.get("pending_test") and not it.get("outputs") else "✅",
+                    "Avg score": round(sum(sc) / len(sc), 1) if sc else None,
+                    "Ocenione kroków": len(sc),
+                    "Ulepszone kroków": len(it.get("proposals", {})),
+                    "Status": "⏳ Czeka na test" if it.get("pending_test") and not it.get("outputs") else "✅ Ukończona",
                 })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-            st.divider()
+            df_summary = pd.DataFrame(rows)
+            st.dataframe(df_summary, use_container_width=True, hide_index=True)
 
-            if len(iters) >= 2:
-                st.subheader("Porównaj dwie iteracje")
+            # ── Scoring evolution ──────────────────────────────────────
+            # Collect per-step scores across all evaluated iterations
+            iters_with_evals = [it for it in iters if it.get("evaluations")]
+            if len(iters_with_evals) >= 1:
+                st.divider()
+                st.subheader("📈 Ewolucja scoringu per krok")
+                st.caption("Jak zmieniał się wynik oceny każdego kroku pipeline w kolejnych iteracjach.")
+
+                # Build a dict: step_key → {iter_num: score}
+                all_step_keys = {}
+                for it in iters_with_evals:
+                    for sk, ev in it["evaluations"].items():
+                        if isinstance(ev, dict) and "score" in ev:
+                            sname = it["prompts"].get(sk, {}).get("step_name", sk)
+                            all_step_keys[sk] = sname
+
+                if all_step_keys:
+                    # Build DataFrame: rows=iterations, cols=step names
+                    score_data = {}
+                    for it in iters_with_evals:
+                        iter_label = f"It.{it['number']}"
+                        score_data[iter_label] = {}
+                        for sk, sname in all_step_keys.items():
+                            ev = it["evaluations"].get(sk)
+                            score_data[iter_label][sname] = ev.get("score") if isinstance(ev, dict) else None
+
+                    df_scores = pd.DataFrame(score_data).T  # rows=iterations, cols=steps
+                    df_scores.index.name = "Iteracja"
+
+                    # Line chart
+                    st.line_chart(df_scores, height=320)
+
+                    # ── Per-step detail table ─────────────────────────
+                    st.markdown("##### Tabela szczegółowa — Score per krok per iteracja")
+
+                    # Build long-form table with color indicators
+                    detail_rows = []
+                    sorted_steps = sorted(all_step_keys.items(),
+                                          key=lambda x: iters_with_evals[0]["prompts"].get(x[0], {}).get("step_order", 999))
+                    for sk, sname in sorted_steps:
+                        row = {"Krok": sname}
+                        for it in iters_with_evals:
+                            ev = it["evaluations"].get(sk)
+                            sc_val = ev.get("score") if isinstance(ev, dict) else None
+                            row[f"It.{it['number']}"] = sc_val
+                        detail_rows.append(row)
+
+                    df_detail = pd.DataFrame(detail_rows).set_index("Krok")
+
+                    # Color cells: red <5, yellow 5-7, green >=8
+                    def color_score(val):
+                        if val is None or (isinstance(val, float) and pd.isna(val)):
+                            return "color: gray"
+                        v = int(val)
+                        if v >= 8:
+                            return "background-color: #1a7a2e; color: white"
+                        elif v >= 5:
+                            return "background-color: #7a6a00; color: white"
+                        else:
+                            return "background-color: #7a1a1a; color: white"
+
+                    st.dataframe(
+                        df_detail.style.applymap(color_score),
+                        use_container_width=True
+                    )
+
+                    # ── Delta: first vs last iteration ───────────────
+                    if len(iters_with_evals) >= 2:
+                        st.markdown("##### Zmiana score: Iteracja 1 → Ostatnia")
+                        first = iters_with_evals[0]
+                        last = iters_with_evals[-1]
+                        delta_rows = []
+                        for sk, sname in sorted_steps:
+                            ev_first = first["evaluations"].get(sk)
+                            ev_last = last["evaluations"].get(sk)
+                            sc_first = ev_first.get("score") if isinstance(ev_first, dict) else None
+                            sc_last = ev_last.get("score") if isinstance(ev_last, dict) else None
+                            if sc_first is not None and sc_last is not None:
+                                delta = sc_last - sc_first
+                                arrow = "🟢 +" if delta > 0 else ("🔴 " if delta < 0 else "⚪ ")
+                                delta_rows.append({
+                                    "Krok": sname,
+                                    f"It.{first['number']} (start)": sc_first,
+                                    f"It.{last['number']} (finał)": sc_last,
+                                    "Zmiana": f"{arrow}{delta:+d}",
+                                })
+                        if delta_rows:
+                            st.dataframe(pd.DataFrame(delta_rows), use_container_width=True, hide_index=True)
+
+            # ── Prompt diff between two iterations ────────────────────
+            if len(iters_with_evals) >= 2:
+                st.divider()
+                st.subheader("Porównaj prompty dwóch iteracji")
                 iter_map = {it["number"]: it for it in iters}
                 hc1, hc2 = st.columns(2)
                 va = hc1.selectbox("Wersja A:", sorted(iter_map.keys()), key="ha")
@@ -410,7 +565,7 @@ def render():
                     else:
                         for sk in changed:
                             pa = ia["prompts"][sk]; pb = ib["prompts"][sk]
-                            with st.expander(f"📝 {pa.get('step_name',sk)}"):
+                            with st.expander(f"📝 {pa.get('step_name', sk)}"):
                                 st.markdown("**System Prompt diff:**")
                                 st.code(_diff(pa["system"], pb["system"]), language="diff")
                                 if pa["user"] != pb["user"]:
@@ -422,8 +577,8 @@ def render():
                 export = {"test_job": _lab()["test_job"], "iterations": [
                     {"number": it["number"],
                      "prompts": {sk: {"step_name": v["step_name"], "system": v["system"], "user": v["user"]}
-                                 for sk,v in it["prompts"].items()},
-                     "evaluations": it.get("evaluations",{})}
+                                 for sk, v in it["prompts"].items()},
+                     "evaluations": it.get("evaluations", {})}
                     for it in iters
                 ]}
                 st.download_button("⬇️ Pobierz session.json",
@@ -435,3 +590,4 @@ def render():
                 st.session_state["prompt_lab"] = None
                 _init()
                 st.success("Sesja zresetowana."); st.rerun()
+
