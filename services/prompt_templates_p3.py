@@ -40,7 +40,7 @@ Czy tekst jest dynamiczny? Czy ma CTA? Czy ma około 150 znaków?""",
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 67, "key": "faq", "name": "Generowanie FAQ", "stage_group": "seo", "output_type": "html", "max_tokens": 1500,
+        "order": 85, "key": "faq", "name": "Generowanie FAQ", "stage_group": "seo", "output_type": "html", "max_tokens": 1500,
         "sys": """# Rola
 Jesteś specjalistą od Customer Success i SEO, który rozwiązuje problemy klientów przed ich powstaniem.
 
@@ -109,7 +109,7 @@ Nie wolno:
 
 # Format odpowiedzi
 Zwróć sam, gotowy kod HTML.""",
-        "user": """<język>\n{{language}}\n</język>\n\n<tekst_pierwotny>\n{{current_step_output}}\n</tekst_pierwotny>"""
+        "user": """<język>\n{{language}}\n</język>\n\n<tekst_pierwotny>\n{{previous_steps.attractiveness_optimization}}\n</tekst_pierwotny>\n\n<tekst_zapasowy_jeśli_brak_attractiveness>\n{{previous_steps.humanization}}\n</tekst_zapasowy_jeśli_brak_attractiveness>\n\n<tekst_zapasowy_jeśli_brak_humanization>\n{{previous_steps.seo_section_writer}}\n</tekst_zapasowy_jeśli_brak_humanization>"""
     },
     {
         "order": 80, "key": "html_cleanup", "name": "Czyszczenie HTML", "stage_group": "technical", "output_type": "html", "max_tokens": 3000,

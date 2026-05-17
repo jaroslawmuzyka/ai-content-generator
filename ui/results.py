@@ -120,26 +120,39 @@ def render():
             char_desc = len(meta_desc)
             c_meta2.caption(f"{'✅' if char_desc <= 160 else '⚠️'} {char_desc}/160 znaków")
 
+            st.markdown("---")
+            st.markdown("##### 📄 Treść główna artykułu")
+            st.caption("Sekcje H2 + akapity wygenerowane przez pipeline. Nie zawiera FAQ.")
+
             if view_mode == "✏️ Edycja (kod HTML)":
                 final_html = st.text_area(
-                    "Treść HTML",
+                    "Treść HTML (bez FAQ)",
                     value=job.get("final_html") or "",
                     height=400,
-                    help="Główna treść strony w formacie HTML. Edytuj bezpośrednio lub wklej z zewnętrznego edytora."
+                    help="Główna treść strony. FAQ jest w osobnym polu poniżej."
                 )
             else:
                 final_html = job.get("final_html") or ""
                 safe_html = final_html.replace("<script", "&lt;script").replace("</script>", "&lt;/script&gt;")
-                st.markdown("**Podgląd (wygląd zależy od CSS Twojego CMS):**")
+                st.markdown("**Pogląd głównej treści:**")
                 st.markdown(f"<h2>{meta_title or 'Brak Meta Title'}</h2><em>{meta_desc or 'Brak Meta Description'}</em><hr>", unsafe_allow_html=True)
                 st.markdown(safe_html, unsafe_allow_html=True)
 
+            st.markdown("---")
+            st.markdown("##### ❓ Sekcja FAQ")
+            st.caption("FAQ generowane niezależnie przez dedykowany krok AI. W CMS wkleja się po głównej treści.")
+
             faq_html = st.text_area(
-                "FAQ (Sekcja pytań i odpowiedzi)",
+                "FAQ HTML (osobne pole)",
                 value=job.get("faq_html") or "",
-                height=150,
-                help="Opcjonalna sekcja FAQ w formacie HTML — wspiera rich snippets w Google."
+                height=200,
+                help="Sekcja FAQ — przechowywana osobno od treści głównej. Obsługuje rich snippets Google."
             )
+
+            if view_mode == "👁️ Pogląd renderowany" and (job.get("faq_html") or "").strip():
+                safe_faq = (job.get("faq_html") or "").replace("<script", "&lt;script").replace("</script>", "&lt;/script&gt;")
+                st.markdown("**Pogląd FAQ:**")
+                st.markdown(safe_faq, unsafe_allow_html=True)
 
             if st.form_submit_button("💾 Zapisz zmiany", type="primary"):
                 if update_job_final_fields(selected_job_id, final_html, meta_title, meta_desc, faq_html):

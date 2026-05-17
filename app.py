@@ -15,7 +15,7 @@ from core.session import init_session_state
 # Importy widoków
 from ui import (
     dashboard, campaigns, strategy, prompts, new_job, 
-    import_xlsx, queue, results, export, settings
+    import_xlsx, queue, results, export, settings, prompt_lab
 )
 
 from utils.secrets_manager import get_missing_critical_secrets, get_missing_api_keys
@@ -91,6 +91,7 @@ def main():
             "⚙️ Kolejka generowania": queue.render,
             "✅ Wyniki treści": results.render,
             "📤 Eksport": export.render,
+            "🧪 Doskonal prompty": prompt_lab.render,
             "🔧 Ustawienia": settings.render
         }
         
