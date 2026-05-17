@@ -65,12 +65,14 @@ def render():
         if not default_sets:
             st.error("❌ Brak domyślnych zestawów w systemie. Wejdź do **Ustawień** i kliknij 'Zainicjuj domyślne prompty (Seed)'.")
         else:
-            def_options = {d["id"]: f"{d['name']} ({d['content_type']})" for d in default_sets}
-            selected_def_id = st.selectbox("Wybierz zestaw z biblioteki:", options=list(def_options.keys()), format_func=lambda x: def_options[x])
-            if st.button("📋 Skopiuj do tej kampanii", type="primary"):
-                with st.spinner("Klonowanie zestawu..."):
-                    if copy_default_to_campaign(active_camp_id, selected_def_id):
-                        st.success("✅ Prompty zostały skopiowane do kampanii.")
+            if st.button("📋 Skopiuj WSZYSTKIE domyślne zestawy do tej kampanii", type="primary"):
+                with st.spinner("Klonowanie zestawów..."):
+                    success_count = 0
+                    for d in default_sets:
+                        if copy_default_to_campaign(active_camp_id, d["id"]):
+                            success_count += 1
+                    if success_count > 0:
+                        st.success(f"✅ Skopiowano {success_count} zestawów do kampanii.")
                         st.rerun()
 
     st.divider()
@@ -127,12 +129,6 @@ def render():
         st.error("❌ Problem techniczny: brak kroków przypisanych do tego zestawu. Spróbuj przywrócić domyślne lub skontaktuj się z administratorem.")
         return
 
-    filter_group = st.radio(
-        "Filtruj grupę etapów:",
-        ["Wszystkie", "SEO", "Atrakcyjność tekstu", "Techniczne"],
-        horizontal=True
-    )
-
     GROUP_COLORS = {
         "seo": "🔵",
         "attractiveness": "🟣",
@@ -146,11 +142,6 @@ def render():
 
     for step in steps:
         sg = step.get("stage_group", "seo")
-
-        # Filtrowanie
-        if filter_group == "SEO" and sg != "seo": continue
-        if filter_group == "Atrakcyjność tekstu" and sg != "attractiveness": continue
-        if filter_group == "Techniczne" and sg != "technical": continue
 
         group_icon = GROUP_COLORS.get(sg, "⚪")
         group_label = GROUP_LABELS.get(sg, sg.upper())
