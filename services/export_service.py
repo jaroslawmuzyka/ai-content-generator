@@ -1,9 +1,22 @@
 import pandas as pd
 import io
 import json
+import re
 import streamlit as st
 from db.supabase_client import get_supabase_client
 from bs4 import BeautifulSoup
+
+def sanitize_excel_cell(text, fallback="Brak danych"):
+    """Zabezpiecza tekst przed wysypaniem parsera Excela (długość i illegal chars)."""
+    if not text:
+        return fallback
+    text_str = str(text)
+    # Usuwamy nielegalne znaki XML (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F)
+    text_str = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text_str)
+    # Limit Excela to 32767 znaków w komórce, ucinamy z buforem
+    if len(text_str) > 32700:
+        return text_str[:32700] + "\n[... OBcięto przez limit Excela ...]"
+    return text_str
 
 def get_jobs_for_export(campaign_id=None, status=None, content_type=None, language=None, date_from=None, date_to=None):
     """Pobiera zadania dopasowane do wszystkich filtrów z UI."""
@@ -65,7 +78,9 @@ def log_export(campaign_id, operator_name, file_name, filters_dict):
         }
         client.table("exports").insert(data).execute()
         return True
-    except:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"log_export error: {e}")
         return False
 
 def get_export_history():
@@ -75,7 +90,9 @@ def get_export_history():
     try:
         res = client.table("exports").select("*").order("created_at", desc=True).limit(50).execute()
         return res.data
-    except:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"get_export_history error: {e}")
         return []
 
 def generate_export_xlsx(jobs, steps):
@@ -109,7 +126,7 @@ def generate_export_xlsx(jobs, steps):
             "secondary_keywords": job["secondary_keywords"],
             "target_length": job["target_length"],
             "final_length": final_len,
-            "final_html": job.get("final_html", ""),
+            "final_html": sanitize_excel_cell(job.get("final_html")),
             "status": job["status"],
             "created_at": job["created_at"][:19] if job.get("created_at") else "", # ucinamy timezone w excelu by było ładniej
             "completed_at": job["completed_at"][:19] if job.get("completed_at") else ""
@@ -118,28 +135,28 @@ def generate_export_xlsx(jobs, steps):
         meta_data.append({
             "id": job["id"],
             "main_keyword": job["main_keyword"],
-            "meta_title": job.get("meta_title", ""),
-            "meta_description": job.get("meta_description", "")
+            "meta_title": sanitize_excel_cell(job.get("meta_title")),
+            "meta_description": sanitize_excel_cell(job.get("meta_description"))
         })
         
         faq_data.append({
             "id": job["id"],
             "main_keyword": job["main_keyword"],
-            "faq_html": job.get("faq_html", ""),
+            "faq_html": sanitize_excel_cell(job.get("faq_html")),
             "faq_json": "" # Przygotowane miejsce na ewentualny eksport stricte obiektowy
         })
         
         seo_qa_data.append({
             "id": job["id"],
             "main_keyword": job["main_keyword"],
-            "seo_report_json": json.dumps(job.get("seo_report_json"), ensure_ascii=False) if job.get("seo_report_json") else ""
+            "seo_report_json": sanitize_excel_cell(json.dumps(job.get("seo_report_json"), ensure_ascii=False) if job.get("seo_report_json") else "")
         })
         
         attr_qa_data.append({
             "id": job["id"],
             "main_keyword": job["main_keyword"],
             "attractiveness_score": job.get("attractiveness_score", ""),
-            "attractiveness_report_json": json.dumps(job.get("attractiveness_report_json"), ensure_ascii=False) if job.get("attractiveness_report_json") else ""
+            "attractiveness_report_json": sanitize_excel_cell(json.dumps(job.get("attractiveness_report_json"), ensure_ascii=False) if job.get("attractiveness_report_json") else "")
         })
         
         # Jeśli job zgasł na błędzie, spróbuj przypiąć do tego arkusza "Error" winowajcę
@@ -167,8 +184,8 @@ def generate_export_xlsx(jobs, steps):
             "input_tokens": s.get("input_tokens", 0),
             "output_tokens": s.get("output_tokens", 0),
             "estimated_cost": "", # Na etapie MVP puste
-            "output_text": str(s.get("output_text", "")),
-            "error_message": str(s.get("error_message", ""))
+            "output_text": sanitize_excel_cell(str(s.get("output_text", ""))),
+            "error_message": sanitize_excel_cell(str(s.get("error_message", "")))
         })
         
     # Konstrukcja mechanizmów pandas

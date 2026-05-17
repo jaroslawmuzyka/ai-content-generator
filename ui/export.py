@@ -3,10 +3,11 @@ from datetime import datetime
 import json
 from services.campaign_service import get_campaigns
 from services.export_service import get_jobs_for_export, get_all_steps_for_jobs, generate_export_xlsx, log_export, get_export_history
+from utils.constants import JOB_STATUSES
 
 def render():
-    st.title("Eksport Zbiorczy (.xlsx)")
-    st.write("Skonfiguruj filtry i pobierz spakowane wyniki generowania (wraz z historią błędów i logów) do łatwego skopiowania lub uploadu w innych systemach.")
+    st.title("📤 Eksport")
+    st.write("Pobierz wygenerowane treści i raporty do pliku XLSX.")
     
     tab1, tab2 = st.tabs(["📤 Nowy Eksport", "🗄️ Historia Pobierań"])
     
@@ -60,7 +61,7 @@ def render():
                 op_name = st.session_state.get("current_operator", "N/A")
                 log_export(f_camp, op_name, filename, filters_dict)
                 
-                st.success(f"Arkusz jest gotowy! Złapano {len(jobs)} głównych rekordów i setki pomniejszych kroków do 6 osobnych zakładek w Excelu.", icon="✅")
+                st.success("✅ Eksport XLSX został przygotowany.")
                 
                 # Faktyczny guzik pobierania strumienia danych binarnych prosto do maszyny klienckiej (bez zapisywania w repo)
                 st.download_button(

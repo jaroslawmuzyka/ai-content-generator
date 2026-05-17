@@ -3,8 +3,8 @@ from services.campaign_service import get_campaigns, get_campaign_by_id, create_
 from utils.constants import CONTENT_TYPES, LOCALES, PROVIDERS, MODELS_BY_PROVIDER
 
 def render():
-    st.title("Kampanie Contentowe")
-    st.write("Zarządzanie projektami generowania treści (kampaniami).")
+    st.title("📂 Kampanie Contentowe")
+    st.write("Kampania to paczka treści lub projekt contentowy, np. wpisy blogowe na dany miesiąc albo opisy produktów dla wybranej kategorii.")
     
     # Stan widoku: list, create, edit
     view_mode = st.session_state.get("campaign_view_mode", "list")
@@ -34,7 +34,7 @@ def show_list_view():
     campaigns = get_campaigns(status_filter)
     
     if not campaigns:
-        st.info("Brak kampanii do wyświetlenia. Utwórz pierwszą kampanię klikając w przycisk powyżej.", icon="ℹ️")
+        st.info("Nie masz jeszcze kampanii. Utwórz pierwszą kampanię, żeby zacząć generować treści.", icon="ℹ️")
         return
         
     active_id = st.session_state.get("active_campaign_id")
@@ -91,23 +91,25 @@ def show_list_view():
 
 def show_create_view():
     st.subheader("Tworzenie nowej kampanii")
+    st.info("Poniższe ustawienia to tylko domyślne podpowiedzi dla nowych zadań. Przy generowaniu każdego tekstu będziesz mógł je zmienić.")
     
     # Nie używamy st.form, aby selectboxy AI mogły się dynamicznie odświeżać
-    name = st.text_input("Nazwa kampanii *", placeholder="Np. Blog Tech, Landingi Wiosna", key="new_camp_name")
-    description = st.text_area("Opis projektu", key="new_camp_desc")
+    name = st.text_input("Nazwa kampanii *", placeholder="Np. Blog Tech, Landingi Wiosna", help="Wybierz nazwę, która pozwoli Ci łatwo zidentyfikować tę paczkę tekstów w przyszłości.", key="new_camp_name")
+    description = st.text_area("Krótki opis projektu (Opcjonalne)", placeholder="Opcjonalna notatka o założeniach tego projektu.", key="new_camp_desc")
     
-    c1, c2 = st.columns(2)
-    content_type = c1.selectbox("Domyślny typ contentu", CONTENT_TYPES, key="new_camp_ct")
-    locale = c2.selectbox("Domyślny język/locale", list(LOCALES.keys()), key="new_camp_loc")
-    
-    c3, c4 = st.columns(2)
-    provider = c3.selectbox("Domyślny provider AI", PROVIDERS, key="new_camp_prov")
-    model = c4.selectbox("Domyślny model AI", MODELS_BY_PROVIDER.get(provider, []), key="new_camp_mod")
+    with st.expander("Ustawienia domyślne dla tej kampanii (Rozwiń)", expanded=False):
+        c1, c2 = st.columns(2)
+        content_type = c1.selectbox("Domyślny typ contentu", CONTENT_TYPES, key="new_camp_ct")
+        locale = c2.selectbox("Domyślny język/locale", list(LOCALES.keys()), key="new_camp_loc")
+        
+        c3, c4 = st.columns(2)
+        provider = c3.selectbox("Domyślny dostawca AI", PROVIDERS, key="new_camp_prov")
+        model = c4.selectbox("Domyślny model AI", MODELS_BY_PROVIDER.get(provider, []), key="new_camp_mod")
     
     st.write("") # Odstęp
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 4])
     
-    if col_btn1.button("💾 Zapisz", type="primary", use_container_width=True):
+    if col_btn1.button("💾 Zapisz Kampanię", type="primary", use_container_width=True):
         if not name.strip():
             st.error("Nazwa kampanii jest wymagana!")
         else:
@@ -125,10 +127,20 @@ def show_create_view():
                 }
                 new_camp = create_campaign(data)
                 if new_camp:
-                    st.success("Kampania utworzona!")
+                    st.success("✅ Kampania została utworzona.")
+                    
                     # Automatyczne ustawienie kampanii jako aktywnej
                     st.session_state["active_campaign_id"] = new_camp["id"]
-                    set_view_mode("list")
+                    
+                    st.markdown("### Co dalej?")
+                    st.markdown("1. 🎯 Przejdź do **Strategia Treści** i opisz personę/markę, by teksty były lepsze (Opcjonalnie).")
+                    st.markdown("2. 📝 Przejdź do **Prompty** i kliknij 'Skopiuj Systemowy', by maszyna dostała instrukcje (Wymagane!).")
+                    st.markdown("3. ➕ Przejdź do **Nowe Zadanie** lub **Import XLSX** aby dodać słowa kluczowe do wygenerowania.")
+                    
+                    if st.button("Wróć do listy kampanii", type="secondary"):
+                        set_view_mode("list")
+                        st.rerun()
+                    return # Stop renderowania reszty formularza
                     
     if col_btn2.button("Anuluj", use_container_width=True):
         set_view_mode("list")

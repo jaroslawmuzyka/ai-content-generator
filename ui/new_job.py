@@ -5,7 +5,8 @@ from services.campaign_service import get_campaign_by_id
 from utils.constants import CONTENT_TYPES, LOCALES, PROVIDERS, MODELS_BY_PROVIDER
 
 def render():
-    st.title("Nowe Zadanie (Pojedyncze)")
+    st.title("Nowa treść")
+    st.write("Dodaj pojedyncze zadanie do wygenerowania treści.")
     
     # 1. Sprawdzenie wymagań wejściowych
     active_camp_id = st.session_state.get("active_campaign_id")
@@ -63,14 +64,14 @@ def render():
         
         # Sekcja: SEO
         st.markdown("#### 2. SEO i Frazy Kluczowe")
-        main_keyword = st.text_input("Główne słowo kluczowe *", placeholder="Np. buty sportowe damskie")
-        secondary_keywords = st.text_area("Poboczne słowa kluczowe (po przecinku)", placeholder="buty do biegania, tanie sneakersy, nike, adidas")
-        target_length = st.number_input("Docelowa długość (znaki bez spacji, opcjonalnie)", min_value=0, value=0, step=500, help="Zostaw 0, by zdać się na model.")
+        main_keyword = st.text_input("Główne słowo kluczowe *", placeholder="Np. buty sportowe damskie", help="Najważniejsza fraza SEO, wokół której ma powstać treść.")
+        secondary_keywords = st.text_area("Poboczne słowa kluczowe (po przecinku)", placeholder="buty do biegania, tanie sneakersy, nike, adidas", help="Frazy pomocnicze. Nie będą upychane na siłę — model użyje ich naturalnie.")
+        target_length = st.number_input("Docelowa długość (znaki bez spacji, opcjonalnie)", min_value=0, value=0, step=500, help="Docelowa długość tekstu w znakach ze spacjami. Model może nie trafić idealnie, ale aplikacja pokaże różnicę.")
         
         # Sekcja: Istniejąca treść
         st.markdown("#### 3. Treść i wytyczne (Opcjonalnie)")
-        current_content = st.text_area("Istniejąca treść (do zadania typu 'Rewrite' lub 'Optymalizacja')", height=150)
-        additional_notes = st.text_area("Dodatkowe wytyczne dla AI (będą wstrzyknięte do analizy)", placeholder="Napisz luzem. Zwróć uwagę na ton marki...")
+        current_content = st.text_area("Istniejąca treść (do zadania typu 'Rewrite' lub 'Optymalizacja')", height=150, help="Wklej obecną treść strony, jeśli chcesz ją poprawić lub rozbudować.")
+        additional_notes = st.text_area("Dodatkowe wytyczne dla AI (będą wstrzyknięte do analizy)", placeholder="Napisz luzem. Zwróć uwagę na ton marki...", help="Zostaną dodane jako dodatkowy kontekst.")
         
         # Sekcja: Tryb i Strategia
         st.markdown("#### 4. Atrakcyjność i Skuteczność Tekstu (Opcjonalnie)")
@@ -83,11 +84,11 @@ def render():
         generation_mode = st.selectbox("Tryb generowania", list(gen_mode_opts.keys()), format_func=lambda x: gen_mode_opts[x])
         
         with st.expander("Nadpisz strategię kampanii dla tego konkretnego zadania"):
-            content_goal = st.text_input("Cel tekstu (np. sprzedaż, edukacja)")
-            call_to_action = st.text_input("Call To Action (CTA)")
+            content_goal = st.text_input("Cel tekstu", help="Np. edukacja, sprzedaż, przejście do kategorii, zapis na konsultację.")
+            call_to_action = st.text_input("Call To Action (CTA)", help="Docelowe wezwanie do działania, np. sprawdź ofertę, skontaktuj się, pobierz poradnik.")
             target_audience_override = st.text_input("Grupa docelowa (Nadpisz)")
             persona_override = st.text_input("Persona (Nadpisz)")
-            tone_override = st.text_input("Ton (Nadpisz)")
+            tone_override = st.text_input("Ton (Nadpisz)", help="Np. ekspercki, prosty, empatyczny, premium, techniczny.")
         
         # Sekcja: Globalne ustawienia nadpisujące z kampanii
         st.markdown("#### 5. Parametry wykonawcze")
@@ -101,6 +102,9 @@ def render():
         mod_idx = flat_models.index(campaign.get("default_model")) if campaign.get("default_model") in flat_models else 0
         model = p2.selectbox("Globalny Model Awaryjny", flat_models, index=mod_idx)
         
+        if model and ("gpt-4" in model or "opus" in model):
+            st.warning("⚠️ Wybrano bardzo drogi model. Upewnij się, że budżet kampanii na to pozwala.")
+            
         priority = p3.number_input("Priorytet (Wyższy = szybszy start)", min_value=0, max_value=100, value=0)
         
         # Sekcja: Pipeline (Modyfikacja w locie)
@@ -140,6 +144,10 @@ def render():
                 st.error("Główne słowo kluczowe jest wymagane!")
             elif target_length < 0:
                 st.error("Docelowa długość musi być nieujemna.")
+            elif target_length > 15000:
+                st.error("Wymagasz zbyt długiego tekstu (ponad 15000 znaków). Modele AI zazwyczaj ucinają odpowiedź wokół 4000-8000 znaków. Jeśli chcesz dłuższy tekst, ustaw mniejsze sekcje lub zignoruj to pole.")
+            elif current_content and len(current_content) > 30000:
+                st.error("Wklejona obecna treść jest bardzo długa (powyżej 30k znaków). Może to spowodować przekroczenie limitu tokenów lub błędy timeoutów.")
             else:
                 status = "queued" if submit_queue else "draft"
                 
@@ -182,8 +190,8 @@ def render():
                     # Zrzut snapshotu
                     if create_prompt_snapshots_for_job(job_id, steps, job_step_toggles):
                         if status == "queued":
-                            st.success("Zadanie wrzucone do kolejki! Przejdź do zakładki 'Kolejka', by uruchomić przetwarzanie.")
+                            st.success("✅ Dodano zadanie do kolejki. Przejdź do 'Kolejka generowania', by uruchomić przetwarzanie.")
                         else:
-                            st.success("Zapisano szkielet zadania (Draft). Będzie widoczny w kolejce jako oczekujący.")
+                            st.success("✅ Zapisano szkielet zadania (Draft).")
                     else:
                         st.warning("Zadanie utworzone z problemami. Brak snapshotu promptów – usuń zadanie i ponów próbę.")

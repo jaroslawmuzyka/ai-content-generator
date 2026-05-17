@@ -35,15 +35,21 @@ def validate_uploaded_file(file):
     try:
         df = pd.read_excel(file)
     except Exception as e:
-        return [], [{"row": "N/A", "error": f"Krytyczny błąd odczytu pliku: {str(e)}. Upewnij się, że to format .xlsx"}]
+        return [], [{"Wiersz": "N/A", "Słowo (main_keyword)": "-", "Znalezione błędy": f"Krytyczny błąd odczytu pliku: {str(e)[:100]}. Upewnij się, że to format .xlsx"}]
         
     # Walidacja struktury
     missing_cols = [c for c in EXPECTED_COLUMNS if c not in df.columns]
     if missing_cols:
-        return [], [{"row": "N/A", "error": f"Brakuje niezbędnych kolumn: {', '.join(missing_cols)}. Pobierz szablon by to naprawić."}]
+        return [], [{"Wiersz": "N/A", "Słowo (main_keyword)": "-", "Znalezione błędy": f"Brakuje niezbędnych kolumn: {', '.join(missing_cols)}. Pobierz szablon by to naprawić."}]
+        
+    if df.empty:
+        return [], [{"Wiersz": "N/A", "Słowo (main_keyword)": "-", "Znalezione błędy": "Plik Excel jest pusty (brak danych poniżej nagłówków)."}]
+        
         
     # Pandas NaN -> Python None
     df = df.where(pd.notnull(df), None)
+    
+    seen_keywords = set()
     
     for idx, row in df.iterrows():
         row_num = idx + 2 # Header to wiersz 1, więc dane zaczynają się od 2
@@ -57,6 +63,12 @@ def validate_uploaded_file(file):
         
         if not main_keyword:
             row_errors.append("Puste pole 'main_keyword' (Wymagane)")
+        elif len(main_keyword) > 255:
+            row_errors.append(f"Zbyt długie 'main_keyword' (max 255 znaków, ma {len(main_keyword)})")
+        elif main_keyword.lower() in seen_keywords:
+            row_errors.append(f"Duplikat frazy 'main_keyword' w tym pliku: {main_keyword}")
+        else:
+            seen_keywords.add(main_keyword.lower())
             
         if not content_type or content_type not in CONTENT_TYPES:
             row_errors.append(f"Zły 'content_type'. Dozwolone: {', '.join(CONTENT_TYPES)}")
@@ -71,7 +83,7 @@ def validate_uploaded_file(file):
                 target_length = int(float(target_length))
                 if target_length < 0:
                     row_errors.append("target_length musi być większe od zera")
-            except:
+            except Exception as e:
                 row_errors.append("target_length nie jest liczbą")
                 target_length = None
         else:
@@ -100,7 +112,7 @@ def validate_uploaded_file(file):
         if priority is not None and str(priority).strip().lower() != "none" and str(priority).strip() != "":
             try:
                 priority = int(float(priority))
-            except:
+            except Exception as e:
                 priority = 0
         else:
             priority = 0
@@ -114,12 +126,18 @@ def validate_uploaded_file(file):
         
         sec_kws = str(row.get("secondary_keywords", "") or "").strip()
         if sec_kws == "None" or not sec_kws: sec_kws = None
+        elif len(sec_kws) > 2000:
+            row_errors.append(f"Zbyt długie pole secondary_keywords (max 2000 znaków, ma {len(sec_kws)})")
         
         curr_content = str(row.get("current_content", "") or "").strip()
         if curr_content == "None" or not curr_content: curr_content = None
+        elif len(curr_content) > 100000:
+            row_errors.append(f"Zbyt długie pole current_content (max 100k znaków, ma {len(curr_content)})")
         
         add_notes = str(row.get("additional_notes", "") or "").strip()
         if add_notes == "None" or not add_notes: add_notes = None
+        elif len(add_notes) > 5000:
+            row_errors.append(f"Zbyt długie pole additional_notes (max 5000 znaków, ma {len(add_notes)})")
         
         # Ostateczny osąd dla wiersza
         if row_errors:

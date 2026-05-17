@@ -37,7 +37,9 @@ def get_recent_jobs(limit=10):
     try:
         res = client.table("content_jobs").select("id, created_at, campaign_id, main_keyword, status, operator_name").order("created_at", desc=True).limit(limit).execute()
         return res.data
-    except:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"get_recent_jobs error: {e}")
         return []
 
 def get_recent_errors(limit=5):
@@ -46,7 +48,9 @@ def get_recent_errors(limit=5):
     try:
         res = client.table("content_jobs").select("id, created_at, main_keyword, error_message").eq("status", "failed").order("updated_at", desc=True).limit(limit).execute()
         return res.data
-    except:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"get_recent_errors error: {e}")
         return []
 
 def mark_interrupted_jobs():
@@ -68,7 +72,7 @@ def mark_interrupted_jobs():
                     diff = now_utc - dt
                     if diff.total_seconds() > 3600:
                         to_interrupt.append(j["id"])
-                except:
+                except Exception as e:
                     pass
                     
         if to_interrupt:
@@ -87,5 +91,7 @@ def restore_interrupted_jobs():
     try:
         res = client.table("content_jobs").update({"status": "queued", "error_message": None}).eq("status", "interrupted").execute()
         return len(res.data) if res.data else 0
-    except:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"restore_interrupted_jobs error: {e}")
         return 0

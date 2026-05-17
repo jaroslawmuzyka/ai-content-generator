@@ -7,7 +7,9 @@ def get_campaign_strategy(campaign_id):
     try:
         res = client.table("campaign_content_strategy").select("*").eq("campaign_id", campaign_id).execute()
         return res.data[0] if res.data else None
-    except:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"get_campaign_strategy error: {e}")
         return None
 
 def save_campaign_strategy(campaign_id, data):

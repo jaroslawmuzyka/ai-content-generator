@@ -50,7 +50,9 @@ def update_job_status(job_id, status, error_message=None):
     try:
         client.table("content_jobs").update(data).eq("id", job_id).execute()
         return True
-    except:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"update_job_status error: {e}")
         return False
 
 def requeue_failed_jobs(campaign_id=None):
@@ -74,7 +76,9 @@ def get_job_by_id(job_id):
     try:
         res = client.table("content_jobs").select("*").eq("id", job_id).execute()
         return res.data[0] if res.data else None
-    except:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"get_job_by_id error: {e}")
         return None
 
 def get_job_snapshots(job_id):
@@ -83,7 +87,9 @@ def get_job_snapshots(job_id):
     try:
         res = client.table("job_prompt_snapshots").select("*").eq("job_id", job_id).order("step_order").execute()
         return res.data if res.data else []
-    except:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"get_job_snapshots error: {e}")
         return []
 
 def get_job_steps(job_id):
@@ -92,7 +98,9 @@ def get_job_steps(job_id):
     try:
         res = client.table("content_job_steps").select("*").eq("job_id", job_id).order("step_order").execute()
         return res.data if res.data else []
-    except:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"get_job_steps error: {e}")
         return []
 
 def update_job_final_fields(job_id, final_html, meta_title, meta_description, faq_html):

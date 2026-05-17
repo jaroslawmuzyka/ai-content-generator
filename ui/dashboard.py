@@ -5,8 +5,8 @@ from services.campaign_service import get_campaigns
 from services.export_service import get_export_history
 
 def render():
-    st.title("🎛️ Dashboard")
-    st.write("Panel kontrolny i nadzór nad postępami całego zespołu. Widok aktualizowany po odświeżeniu.")
+    st.title("🎛️ Panel główny")
+    st.write("Tu sprawdzisz stan kampanii, kolejki i ostatnich wygenerowanych treści.")
     
     # -------------------------------------------------------------
     # 1. ZABEZPIECZENIE TYLNE (HEARTBEAT) I CZYSZCZENIE "ZOMBIE" ZADAŃ
@@ -28,14 +28,67 @@ def render():
     # -------------------------------------------------------------
     st.markdown("### 📊 Status Produkcji")
     
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("📌 Aktywne Kampanie", metrics.get("active_campaigns", 0))
-    c2.metric("📦 W Kolejce", counts.get("queued", 0))
+    c2.metric("📦 W Kolejce (Queued)", counts.get("queued", 0))
     c3.metric("⚙️ Przetwarzane", counts.get("processing", 0))
-    c4.metric("👁️ Do Przeglądu", counts.get("needs_review", 0))
-    c5.metric("✅ Zakończone", counts.get("completed", 0))
-    c6.metric("🚨 Błędy", counts.get("failed", 0) + counts.get("interrupted", 0))
+    c4.metric("✅ Gotowe (Completed)", counts.get("completed", 0))
     
+    c5, c6, c7, c8 = st.columns(4)
+    c5.metric("🚨 Z Błędem (Failed)", counts.get("failed", 0))
+    c6.metric("🛑 Przerwane (Interrupted)", counts.get("interrupted", 0))
+    c7.metric("👁️ Wymaga Uwagi (Needs Review)", counts.get("needs_review", 0))
+    c8.metric("📝 Szkice (Draft)", counts.get("draft", 0))
+    
+    st.divider()
+    
+    # -------------------------------------------------------------
+    # 3. CO ZROBIĆ DALEJ? (Przewodnik krok po kroku)
+    # -------------------------------------------------------------
+    st.markdown("### 🧭 Co zrobić dalej?")
+    
+    active_camp_id = st.session_state.get('active_campaign_id')
+    
+    # Onboarding Checklist
+    has_campaigns = metrics.get("active_campaigns", 0) > 0
+    has_active_camp = bool(active_camp_id)
+    has_prompts = False
+    has_jobs = counts.get("queued", 0) > 0 or counts.get("processing", 0) > 0 or counts.get("completed", 0) > 0 or counts.get("failed", 0) > 0
+    has_completed = counts.get("completed", 0) > 0
+    
+    if has_active_camp:
+        from services.prompt_service import get_campaign_prompt_sets
+        prompt_sets = get_campaign_prompt_sets(active_camp_id)
+        has_prompts = len(prompt_sets) > 0
+        
+    st.markdown("### 🏁 Zaczynamy (Checklista)")
+    
+    st.checkbox("1. Utwórz kampanię", value=has_campaigns, disabled=True)
+    st.checkbox("2. Uzupełnij strategię treści (opcjonalnie, ale zalecane)", value=False, disabled=True) # It's hard to dynamically check if strategy is filled, so we'll leave it as unchecked/informational or just don't check it dynamically. Wait, we can check if it exists but let's just make it a visual list.
+    st.checkbox("3. Skopiuj prompty do kampanii", value=has_prompts, disabled=True)
+    st.checkbox("4. Dodaj nową treść (pojedynczą lub import z XLSX)", value=has_jobs, disabled=True)
+    st.checkbox("5. Uruchom kolejkę generowania", value=counts.get("processing", 0) > 0 or has_completed, disabled=True)
+    st.checkbox("6. Sprawdź wynik generowania", value=has_completed, disabled=True)
+    st.checkbox("7. Pobierz eksport", value=len(get_export_history()) > 0, disabled=True)
+
+    st.divider()
+
+    # Pomocnicza logika co pokazać
+    if not has_campaigns:
+        st.info("👋 **Brak kampanii.** Utwórz pierwszą kampanię, żeby zacząć generować treści.")
+    elif not has_active_camp:
+        st.info("🎯 **Masz kampanie w bazie, ale żadna nie jest aktywna.** Wybierz kampanię w lewym menu.")
+    elif not has_prompts:
+        st.warning("⚠️ **Ta kampania nie ma jeszcze promptów.** Skopiuj domyślny zestaw promptów, a potem dostosuj go do kampanii.")
+    elif counts.get("queued", 0) > 0:
+        st.success(f"🚀 Masz **{counts.get('queued')}** zadań w kolejce! Przejdź do zakładki **Kolejka generowania** i uruchom przetwarzanie.")
+    elif counts.get("failed", 0) > 0 or counts.get("interrupted", 0) > 0:
+        st.error("🚨 Wykryto błędy lub przerwane zadania. Przejdź do zakładki **Kolejka generowania**, przefiltruj status 'Failed' / 'Interrupted' i ponów próby.")
+    elif not has_jobs:
+        st.info("ℹ️ **Nie ma jeszcze zadań w tej kampanii.** Dodaj pojedynczą treść lub zaimportuj plik XLSX.")
+    else:
+        st.info("✅ Wszystko gotowe! Sprawdź **Wyniki treści** lub zleć kolejne zadania.")
+            
     st.divider()
     
     # Akcja naprawcza
@@ -47,7 +100,7 @@ def render():
             st.rerun()
             
     # -------------------------------------------------------------
-    # 3. LISTY OSTATNICH ZDARZEŃ (WIDOK DZIELONY)
+    # 4. LISTY OSTATNICH ZDARZEŃ (WIDOK DZIELONY)
     # -------------------------------------------------------------
     c_left, c_right = st.columns(2)
     
