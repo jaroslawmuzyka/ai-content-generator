@@ -1,523 +1,437 @@
 import streamlit as st
 import json
 import difflib
+import pandas as pd
 from services.prompt_service import get_campaign_prompt_sets, get_campaign_prompt_steps
 from services.campaign_service import get_campaigns
 from services.strategy_repository import get_campaign_strategy
-from services.prompt_lab_service import run_lab_pipeline, evaluate_step, improve_prompt
+from services.prompt_lab_service import (
+    run_lab_pipeline, evaluate_step, improve_prompt, run_auto_loop
+)
 from utils.constants import CONTENT_TYPES, LOCALES, PROVIDERS, MODELS_BY_PROVIDER, DEFAULT_MODELS
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
-
-def _init_lab():
-    if "prompt_lab" not in st.session_state:
-        st.session_state["prompt_lab"] = {
-            "campaign_prompt_set_id": None,
-            "test_job": {},
-            "provider": "openai",
-            "model": "gpt-4o-mini",
-            "strategy_data": None,
-            "iterations": [],
-        }
+def _init():
+    if "prompt_lab" not in st.session_state or st.session_state["prompt_lab"] is None:
+        st.session_state["prompt_lab"] = {"test_job": {}, "provider": "openai",
+                                           "model": "gpt-4o-mini", "strategy_data": None,
+                                           "campaign_prompt_set_id": None, "iterations": []}
 
 
-def _lab():
-    return st.session_state["prompt_lab"]
+def _lab(): return st.session_state["prompt_lab"]
+def _cur(): iters = _lab()["iterations"]; return iters[-1] if iters else None
+def _sc(s): return "🟢" if s >= 8 else ("🟡" if s >= 5 else "🔴")
+def _vl(v): return {"excellent":"Doskonały","good":"Dobry","needs_improvement":"Wymaga poprawy","poor":"Słaby"}.get(v, v)
+
+def _diff(a, b):
+    d = list(difflib.unified_diff(a.splitlines(keepends=True), b.splitlines(keepends=True),
+                                   fromfile="PRZED", tofile="PO", lineterm=""))
+    return "".join(d) if d else "(brak zmian)"
+
+def _build_job(main_kw, sec_kw, ct, lang, locale, tlen, notes, cur_content, provider, model):
+    return {"main_keyword": main_kw, "secondary_keywords": sec_kw, "content_type": ct,
+            "language": lang, "locale": locale, "target_length": tlen, "current_content": cur_content,
+            "additional_notes": notes, "url": "", "is_existing_url": False,
+            "content_goal": "", "call_to_action": "",
+            "target_audience_override": None, "persona_override": None, "tone_override": None,
+            "provider": provider, "model": model}
 
 
-def _current_iter():
-    iters = _lab()["iterations"]
-    return iters[-1] if iters else None
+def _job_form(key_prefix):
+    c1, c2 = st.columns(2)
+    main_kw = c1.text_input("Fraza główna *", key=f"{key_prefix}_kw")
+    sec_kw = c2.text_input("Frazy poboczne", key=f"{key_prefix}_sec")
+    c3, c4, c5 = st.columns(3)
+    ct = c3.selectbox("Typ treści", CONTENT_TYPES, key=f"{key_prefix}_ct")
+    lang = c4.selectbox("Język", ["pl","en","de","cs","sk"], key=f"{key_prefix}_lang")
+    locale = c5.selectbox("Lokalizacja", list(LOCALES.keys()), key=f"{key_prefix}_loc")
+    c6, c7 = st.columns(2)
+    tlen = c6.number_input("Długość (znaki)", 0, 20000, 4000, 500, key=f"{key_prefix}_len")
+    notes = c7.text_input("Uwagi", key=f"{key_prefix}_notes")
+    cur = st.text_area("Aktualna treść (opcja)", height=60, key=f"{key_prefix}_cur")
+    return main_kw, sec_kw, ct, lang, locale, tlen, notes, cur
 
 
-def _score_color(score):
-    if score >= 8: return "🟢"
-    if score >= 5: return "🟡"
-    return "🔴"
+def _provider_form(key_prefix):
+    c1, c2 = st.columns(2)
+    prov = c1.selectbox("Provider", PROVIDERS, key=f"{key_prefix}_prov")
+    mdl_list = MODELS_BY_PROVIDER.get(prov, [DEFAULT_MODELS.get(prov, "")])
+    mdl = c2.selectbox("Model", mdl_list, key=f"{key_prefix}_mdl")
+    if any(x in mdl for x in ["gpt-4o", "gpt-4.1", "opus"]) and "mini" not in mdl:
+        st.warning("⚠️ Drogi model — do testów promptów zalecamy gpt-4o-mini lub gpt-4.1-mini.")
+    return prov, mdl
 
-
-def _verdict_label(v):
-    return {"excellent": "Doskonały", "good": "Dobry",
-            "needs_improvement": "Wymaga poprawy", "poor": "Słaby"}.get(v, v)
-
-
-def _make_diff(old, new):
-    """Zwraca prosty diff tekstowy jako string."""
-    old_lines = old.splitlines(keepends=True)
-    new_lines = new.splitlines(keepends=True)
-    diff = list(difflib.unified_diff(old_lines, new_lines, fromfile="Przed", tofile="Po", lineterm=""))
-    return "".join(diff) if diff else "(brak zmian)"
-
-
-# ── render ────────────────────────────────────────────────────────────────────
 
 def render():
-    _init_lab()
+    _init()
     st.title("🧪 Doskonal prompty")
-    st.write("Uruchom testowe generowanie, oceń każdy krok, zatwierdź ulepszenia i iteruj — aż prompty będą idealne.")
+    st.write("Testuj prompty, oceniaj każdy krok AI, zatwierdzaj ulepszenia i iteruj — ręcznie lub automatycznie.")
 
-    tab_setup, tab_results, tab_improve, tab_history = st.tabs([
-        "⚙️ Konfiguracja testu",
-        "📊 Wyniki i Ocena",
-        "💡 Propozycje ulepszeń",
-        "📜 Historia wersji",
+    tab_manual, tab_auto, tab_results, tab_improve, tab_history = st.tabs([
+        "⚙️ Test manualny", "🔄 Auto-pętla", "📊 Wyniki i Ocena", "💡 Propozycje ulepszeń", "📜 Historia"
     ])
 
-    # =========================================================
-    # TAB 1 — KONFIGURACJA
-    # =========================================================
-    with tab_setup:
-        st.subheader("Dane testowe")
-        st.caption("Wypełnij dane testowe jak w 'Nowa treść', wybierz zestaw promptów i uruchom pipeline.")
+    # ── common: campaign/set selector ─────────────────────────────────────────
+    camps = get_campaigns("all")
+    if not camps:
+        for tab in [tab_manual, tab_auto, tab_results, tab_improve, tab_history]:
+            with tab:
+                st.info("Brak kampanii. Utwórz kampanię i skopiuj do niej prompty.")
+        return
 
-        # Kampania i zestaw promptów
-        camps = get_campaigns("all")
-        if not camps:
-            st.info("ℹ️ Brak kampanii. Utwórz kampanię i dodaj do niej prompty.")
-            return
+    camp_opts = {c["id"]: c["name"] for c in camps}
 
-        camp_opts = {c["id"]: c["name"] for c in camps}
+    # =========================================================
+    # TAB 1 — TEST MANUALNY
+    # =========================================================
+    with tab_manual:
+        st.subheader("Uruchom jedną iterację ręcznie")
         sel_camp = st.selectbox("Kampania:", list(camp_opts.keys()),
-                                format_func=lambda x: camp_opts[x], key="lab_camp")
-
+                                format_func=lambda x: camp_opts[x], key="m_camp")
         sets = get_campaign_prompt_sets(sel_camp)
         if not sets:
-            st.warning("Ta kampania nie ma zestawów promptów. Przejdź do zakładki Prompty i skopiuj domyślne.")
-            return
-
-        set_opts = {s["id"]: s["name"] for s in sets}
-        sel_set = st.selectbox("Zestaw promptów:", list(set_opts.keys()),
-                               format_func=lambda x: set_opts[x], key="lab_set")
-
-        st.divider()
-        st.markdown("##### Dane wejściowe zadania testowego")
-
-        c1, c2 = st.columns(2)
-        main_kw = c1.text_input("Fraza główna *", placeholder="np. najlepszy krem do twarzy dla mężczyzn")
-        sec_kw = c2.text_input("Frazy poboczne", placeholder="np. krem nawilżający, pielęgnacja skóry")
-
-        c3, c4, c5 = st.columns(3)
-        content_type = c3.selectbox("Typ treści *", CONTENT_TYPES)
-        language = c4.selectbox("Język *", ["pl", "en", "de", "cs", "sk"])
-        locale_opts = list(LOCALES.keys())
-        locale = c5.selectbox("Lokalizacja", locale_opts)
-
-        c6, c7 = st.columns(2)
-        target_length = c6.number_input("Docelowa długość (znaki)", min_value=0, value=4000, step=500)
-        additional_notes = c7.text_input("Dodatkowe uwagi", placeholder="np. pisz do lekarza, użyj tonu eksperckiego")
-
-        current_content = st.text_area("Aktualna treść (opcjonalnie)", height=80,
-                                       placeholder="Wklej istniejący tekst jeśli chcesz go uwzględnić w analizie")
-
-        st.divider()
-        st.markdown("##### Model AI do testów")
-
-        cp1, cp2 = st.columns(2)
-        provider = cp1.selectbox("Provider", PROVIDERS, key="lab_provider")
-        model_list = MODELS_BY_PROVIDER.get(provider, [DEFAULT_MODELS.get(provider, "")])
-        model = cp2.selectbox("Model", model_list, key="lab_model")
-
-        if any(exp in model for exp in ["gpt-4", "opus", "gpt-4.1"]):
-            st.warning("⚠️ Wybrany model jest drogi. Do testów promptów zalecamy gpt-4o-mini.")
-
-        st.divider()
-
-        iter_num = len(_lab()["iterations"]) + 1
-        btn_label = f"▶ Uruchom test — Iteracja {iter_num}"
-
-        if st.button(btn_label, type="primary", use_container_width=True):
-            if not main_kw.strip():
-                st.error("Fraza główna jest wymagana.")
-                st.stop()
-
-            steps = get_campaign_prompt_steps(sel_set)
-            if not steps:
-                st.error("Wybrany zestaw nie ma kroków. Sprawdź prompty kampanii.")
-                st.stop()
-
-            strategy_data = get_campaign_strategy(sel_camp)
-            job_data = {
-                "main_keyword": main_kw.strip(),
-                "secondary_keywords": sec_kw.strip(),
-                "content_type": content_type,
-                "language": language,
-                "locale": locale,
-                "target_length": target_length,
-                "current_content": current_content.strip(),
-                "additional_notes": additional_notes.strip(),
-                "url": "", "is_existing_url": False,
-                "content_goal": "", "call_to_action": "",
-                "target_audience_override": None, "persona_override": None, "tone_override": None,
-                "provider": provider, "model": model,
-            }
-
-            # Build initial prompts snapshot from campaign steps
-            prompts_snapshot = {
-                s["step_key"]: {"system": s["system_prompt"], "user": s["user_prompt"],
-                                 "step_name": s["step_name"], "step_order": s["step_order"],
-                                 "is_active": s.get("is_active", True), "temperature": s.get("temperature", 0.7),
-                                 "max_tokens": s.get("max_tokens", 1500)}
-                for s in steps
-            }
-
-            # Save config to lab state
-            _lab()["campaign_prompt_set_id"] = sel_set
-            _lab()["test_job"] = job_data
-            _lab()["provider"] = provider
-            _lab()["model"] = model
-            _lab()["strategy_data"] = strategy_data
-
-            # Run pipeline
-            progress_ph = st.empty()
-            prog_bar = st.progress(0)
-
-            def on_progress(step_name, idx, total):
-                prog_bar.progress((idx + 1) / max(total, 1))
-                progress_ph.info(f"⏳ Krok {idx + 1}/{total}: {step_name}")
-
-            with st.spinner("Uruchamianie pipeline..."):
-                outputs = run_lab_pipeline(
-                    steps=steps, job_data=job_data,
-                    provider=provider, model=model,
-                    strategy_data=strategy_data,
-                    progress_cb=on_progress
-                )
-
-            prog_bar.empty()
-            progress_ph.empty()
-
-            new_iteration = {
-                "number": iter_num,
-                "prompts": prompts_snapshot,
-                "outputs": outputs,
-                "evaluations": {},
-                "proposals": {},
-                "approved_keys": [],
-            }
-            _lab()["iterations"].append(new_iteration)
-            st.success(f"✅ Iteracja {iter_num} zakończona! Przejdź do zakładki 'Wyniki i Ocena'.")
-            st.rerun()
-
-    # =========================================================
-    # TAB 2 — WYNIKI I OCENA
-    # =========================================================
-    with tab_results:
-        iter_data = _current_iter()
-        if not iter_data:
-            st.info("ℹ️ Uruchom najpierw test w zakładce 'Konfiguracja testu'.")
+            st.warning("Brak zestawów promptów — przejdź do Prompty i skopiuj domyślne.")
         else:
-            st.subheader(f"Iteracja {iter_data['number']} — Wyniki i Ocena")
-
-            job = _lab()["test_job"]
-            provider = _lab()["provider"]
-            model = _lab()["model"]
-
-            # Score summary
-            evals = iter_data["evaluations"]
-            if evals:
-                scores = [e.get("score", 0) for e in evals.values() if isinstance(e, dict)]
-                avg_score = sum(scores) / len(scores) if scores else 0
-                needs_work = sum(1 for s in scores if s < 7)
-                sc1, sc2, sc3 = st.columns(3)
-                sc1.metric("Średnia ocena", f"{avg_score:.1f}/10")
-                sc2.metric("Kroków z oceną", len(scores))
-                sc3.metric("Wymaga poprawy (<7)", needs_work)
-                st.divider()
-
-            # Evaluate all button
-            col_ev, _ = st.columns([2, 5])
-            if col_ev.button("🔍 Oceń wszystkie kroki AI", type="primary"):
-                prompts = iter_data["prompts"]
-                outputs = iter_data["outputs"]
-                steps_to_eval = [k for k in prompts if not outputs.get(k, {}).get("skipped")]
-                total = len(steps_to_eval)
-                eval_bar = st.progress(0)
-                eval_ph = st.empty()
-                for idx, sk in enumerate(steps_to_eval):
-                    eval_ph.info(f"⏳ Oceniam {idx + 1}/{total}: {prompts[sk]['step_name']}")
-                    eval_bar.progress((idx + 1) / max(total, 1))
-                    ev = evaluate_step(
-                        step_key=sk,
-                        step_name=prompts[sk]["step_name"],
-                        system_prompt=prompts[sk]["system"],
-                        output_text=outputs.get(sk, {}).get("output", ""),
-                        job_data=job,
-                        provider=provider,
-                        model=model
-                    )
-                    iter_data["evaluations"][sk] = ev
-                eval_bar.empty()
-                eval_ph.empty()
-                st.success("✅ Ocena zakończona! Wyniki poniżej.")
+            set_opts = {s["id"]: s["name"] for s in sets}
+            sel_set = st.selectbox("Zestaw promptów:", list(set_opts.keys()),
+                                   format_func=lambda x: set_opts[x], key="m_set")
+            st.divider()
+            main_kw, sec_kw, ct, lang, locale, tlen, notes, cur = _job_form("m")
+            prov, mdl = _provider_form("m")
+            st.divider()
+            iter_n = len(_lab()["iterations"]) + 1
+            if st.button(f"▶ Uruchom test — Iteracja {iter_n}", type="primary", use_container_width=True):
+                if not main_kw.strip():
+                    st.error("Fraza główna jest wymagana.")
+                    st.stop()
+                steps = get_campaign_prompt_steps(sel_set)
+                if not steps:
+                    st.error("Brak kroków w zestawie.")
+                    st.stop()
+                strategy = get_campaign_strategy(sel_camp)
+                job = _build_job(main_kw, sec_kw, ct, lang, locale, tlen, notes, cur, prov, mdl)
+                prompts_snap = {
+                    s["step_key"]: {"system": s["system_prompt"], "user": s["user_prompt"],
+                                    "step_name": s["step_name"], "step_order": s["step_order"],
+                                    "is_active": s.get("is_active", True),
+                                    "temperature": s.get("temperature", 0.7),
+                                    "max_tokens": s.get("max_tokens", 1500)}
+                    for s in steps
+                }
+                _lab().update({"campaign_prompt_set_id": sel_set, "test_job": job,
+                                "provider": prov, "model": mdl, "strategy_data": strategy})
+                ph = st.empty(); bar = st.progress(0)
+                def pcb(n, i, t): bar.progress((i+1)/max(t,1)); ph.info(f"⏳ {i+1}/{t}: {n}")
+                with st.spinner("Pipeline w toku..."):
+                    outputs = run_lab_pipeline(steps, job, prov, mdl, strategy, pcb)
+                bar.empty(); ph.empty()
+                _lab()["iterations"].append({
+                    "number": iter_n, "prompts": prompts_snap,
+                    "outputs": outputs, "evaluations": {}, "proposals": {}, "auto": False
+                })
+                st.success(f"✅ Iteracja {iter_n} zakończona! Przejdź do 'Wyniki i Ocena'.")
                 st.rerun()
 
-            # Display steps
-            prompts_snap = iter_data["prompts"]
-            outputs_data = iter_data["outputs"]
-            sorted_steps = sorted(prompts_snap.keys(),
-                                  key=lambda k: prompts_snap[k].get("step_order", 999))
+    # =========================================================
+    # TAB 2 — AUTO-PĘTLA
+    # =========================================================
+    with tab_auto:
+        st.subheader("🔄 Automatyczne doskonalenie — ustaw liczbę iteracji i puść maszynę")
+        st.info("AI samo uruchomi pipeline → oceni każdy krok → zaproponuje i zastosuje ulepszenia → powtórzy N razy.")
 
-            for sk in sorted_steps:
-                step_info = prompts_snap[sk]
-                out_info = outputs_data.get(sk, {})
-                ev = iter_data["evaluations"].get(sk)
+        sel_camp_a = st.selectbox("Kampania:", list(camp_opts.keys()),
+                                   format_func=lambda x: camp_opts[x], key="a_camp")
+        sets_a = get_campaign_prompt_sets(sel_camp_a)
+        if not sets_a:
+            st.warning("Brak zestawów promptów.")
+        else:
+            set_opts_a = {s["id"]: s["name"] for s in sets_a}
+            sel_set_a = st.selectbox("Zestaw promptów:", list(set_opts_a.keys()),
+                                     format_func=lambda x: set_opts_a[x], key="a_set")
+            st.divider()
+            main_kw_a, sec_kw_a, ct_a, lang_a, locale_a, tlen_a, notes_a, cur_a = _job_form("a")
+            prov_a, mdl_a = _provider_form("a")
+            st.divider()
 
-                if out_info.get("skipped"):
-                    label = f"⏭️ {step_info['step_name']} (pominięty)"
-                elif ev:
-                    score = ev.get("score", 0)
-                    label = f"{_score_color(score)} Krok {step_info['step_order']}: {step_info['step_name']} — {score}/10 {_verdict_label(ev.get('verdict',''))}"
-                else:
-                    label = f"⚪ Krok {step_info['step_order']}: {step_info['step_name']} — (nieoceniony)"
+            ac1, ac2 = st.columns(2)
+            n_iter = ac1.slider("Liczba iteracji automatycznych:", min_value=2, max_value=10, value=3)
+            threshold = ac2.slider("Minimalny score bez poprawki:", min_value=6, max_value=10, value=9,
+                                   help="Kroki z oceną poniżej tego progu będą ulepszane.")
 
-                with st.expander(label, expanded=False):
-                    out_text = out_info.get("output", "")
-                    error = out_info.get("error")
-                    if error:
-                        st.error(f"❌ Błąd kroku: {error}")
-                    elif out_text:
-                        st.markdown("**Output:**")
-                        st.text_area("", value=out_text[:3000] + ("…" if len(out_text) > 3000 else ""),
-                                     height=200, disabled=True, key=f"out_{sk}_{iter_data['number']}")
-                        tin = out_info.get("tokens_in", 0)
-                        tout = out_info.get("tokens_out", 0)
-                        if tin or tout:
-                            st.caption(f"Tokeny: {tin} in / {tout} out")
-                    else:
-                        st.warning("Brak outputu dla tego kroku.")
+            st.warning(f"⚠️ Auto-pętla wykona {n_iter} rund × (pipeline + ocena + ulepszenie). "
+                       f"Może to zająć kilkanaście minut i wygenerować znaczące koszty API.")
 
-                    if ev:
-                        st.markdown("**Ocena AI:**")
-                        ec1, ec2 = st.columns(2)
-                        ec1.metric("Score", f"{ev.get('score', 0)}/10")
-                        ec2.write(f"**Werdykt:** {_verdict_label(ev.get('verdict', ''))}")
-                        if ev.get("strengths"):
-                            st.success("✅ Mocne strony: " + " | ".join(ev["strengths"]))
-                        if ev.get("weaknesses"):
-                            st.error("❌ Słabości: " + " | ".join(ev["weaknesses"]))
-                        if ev.get("improvement_suggestions"):
-                            st.info("💡 Sugestie do promptu: " + " | ".join(ev["improvement_suggestions"]))
+            if st.button(f"🚀 Uruchom {n_iter} automatycznych iteracji", type="primary", use_container_width=True):
+                if not main_kw_a.strip():
+                    st.error("Fraza główna jest wymagana.")
+                    st.stop()
+                steps_a = get_campaign_prompt_steps(sel_set_a)
+                if not steps_a:
+                    st.error("Brak kroków w zestawie.")
+                    st.stop()
+                strategy_a = get_campaign_strategy(sel_camp_a)
+                job_a = _build_job(main_kw_a, sec_kw_a, ct_a, lang_a, locale_a, tlen_a, notes_a, cur_a, prov_a, mdl_a)
+                _lab().update({"campaign_prompt_set_id": sel_set_a, "test_job": job_a,
+                                "provider": prov_a, "model": mdl_a, "strategy_data": strategy_a})
+
+                auto_ph = st.empty()
+                auto_bar = st.progress(0)
+
+                def auto_cb(iter_num, n_total, phase, step_name, idx, total):
+                    pct = ((iter_num - 1) / n_total) + (1 / n_total) * (idx / max(total, 1))
+                    auto_bar.progress(min(pct, 1.0))
+                    phase_labels = {"pipeline": "🏃 Pipeline", "eval": "🔍 Ocena", "improve": "✨ Ulepszanie"}
+                    pl = phase_labels.get(phase, phase)
+                    sn = f" — {step_name}" if step_name else ""
+                    auto_ph.info(f"Iteracja {iter_num}/{n_total} | {pl}{sn}")
+
+                with st.spinner("Auto-pętla w toku — proszę nie zamykać okna..."):
+                    new_iters = run_auto_loop(
+                        initial_steps=steps_a, job_data=job_a,
+                        provider=prov_a, model=mdl_a, strategy_data=strategy_a,
+                        n_iterations=n_iter, min_score_threshold=threshold,
+                        progress_cb=auto_cb
+                    )
+
+                auto_bar.empty(); auto_ph.empty()
+                # Offset iteration numbers
+                offset = len(_lab()["iterations"])
+                for it in new_iters:
+                    it["number"] += offset
+                    _lab()["iterations"].append(it)
+
+                st.success(f"✅ Auto-pętla zakończona! Dodano {len(new_iters)} iteracji. Sprawdź 'Historia'.")
+                st.rerun()
 
     # =========================================================
-    # TAB 3 — PROPOZYCJE ULEPSZEŃ
+    # TAB 3 — WYNIKI I OCENA
+    # =========================================================
+    with tab_results:
+        cur = _cur()
+        if not cur:
+            st.info("Uruchom test (ręczny lub auto).")
+        else:
+            st.subheader(f"Iteracja {cur['number']} — Wyniki i Ocena")
+            job = _lab()["test_job"]; prov = _lab()["provider"]; mdl = _lab()["model"]
+            evals = cur["evaluations"]
+            if evals:
+                scores = [e.get("score",0) for e in evals.values() if isinstance(e,dict)]
+                sc1,sc2,sc3 = st.columns(3)
+                sc1.metric("Średnia ocena", f"{sum(scores)/len(scores):.1f}/10" if scores else "—")
+                sc2.metric("Ocenionych kroków", len(scores))
+                sc3.metric("Wymaga poprawy (<7)", sum(1 for s in scores if s<7))
+                st.divider()
+
+            if st.button("🔍 Oceń wszystkie kroki", type="primary"):
+                prompts = cur["prompts"]
+                outputs = cur["outputs"]
+                bar2 = st.progress(0); ph2 = st.empty()
+                keys = [k for k in prompts if not outputs.get(k,{}).get("skipped")]
+                for i,sk in enumerate(keys):
+                    ph2.info(f"Oceniam {i+1}/{len(keys)}: {prompts[sk]['step_name']}")
+                    bar2.progress((i+1)/max(len(keys),1))
+                    cur["evaluations"][sk] = evaluate_step(
+                        sk, prompts[sk]["step_name"], prompts[sk]["system"],
+                        outputs.get(sk,{}).get("output",""), job, prov, mdl)
+                bar2.empty(); ph2.empty()
+                st.success("Ocena zakończona!"); st.rerun()
+
+            sorted_keys = sorted(cur["prompts"].keys(), key=lambda k: cur["prompts"][k].get("step_order",999))
+            for sk in sorted_keys:
+                si = cur["prompts"][sk]; oi = cur["outputs"].get(sk,{}); ev = cur["evaluations"].get(sk)
+                if oi.get("skipped"):
+                    lbl = f"⏭️ {si['step_name']} (pominięty)"
+                elif ev:
+                    lbl = f"{_sc(ev.get('score',0))} Krok {si['step_order']}: {si['step_name']} — {ev.get('score',0)}/10 {_vl(ev.get('verdict',''))}"
+                else:
+                    lbl = f"⚪ Krok {si['step_order']}: {si['step_name']} — (nieoceniony)"
+                with st.expander(lbl):
+                    out = oi.get("output","")
+                    if oi.get("error"):
+                        st.error(f"❌ {oi['error']}")
+                    elif out:
+                        st.text_area("Output:", value=out[:3000]+("…" if len(out)>3000 else ""),
+                                     height=180, disabled=True, key=f"o_{sk}_{cur['number']}")
+                        tin,tout = oi.get("tokens_in",0), oi.get("tokens_out",0)
+                        if tin or tout: st.caption(f"Tokeny: {tin} in / {tout} out")
+                    if ev:
+                        ec1,ec2 = st.columns(2)
+                        ec1.metric("Score", f"{ev.get('score',0)}/10")
+                        ec2.write(f"**{_vl(ev.get('verdict',''))}**")
+                        if ev.get("strengths"): st.success("✅ " + " | ".join(ev["strengths"]))
+                        if ev.get("weaknesses"): st.error("❌ " + " | ".join(ev["weaknesses"]))
+                        if ev.get("improvement_suggestions"): st.info("💡 " + " | ".join(ev["improvement_suggestions"]))
+
+    # =========================================================
+    # TAB 4 — PROPOZYCJE ULEPSZEŃ
     # =========================================================
     with tab_improve:
-        iter_data = _current_iter()
-        if not iter_data:
-            st.info("ℹ️ Najpierw uruchom test w zakładce 'Konfiguracja testu'.")
-        elif not iter_data["evaluations"]:
-            st.info("ℹ️ Najpierw oceń kroki w zakładce 'Wyniki i Ocena'.")
+        cur = _cur()
+        if not cur:
+            st.info("Uruchom test.")
+        elif not cur["evaluations"]:
+            st.info("Najpierw oceń kroki w zakładce 'Wyniki i Ocena'.")
         else:
-            st.subheader(f"Iteracja {iter_data['number']} — Propozycje ulepszeń")
-            provider = _lab()["provider"]
-            model = _lab()["model"]
-            prompts_snap = iter_data["prompts"]
-
-            # Steps that need improvement
-            steps_needing_work = [
-                sk for sk, ev in iter_data["evaluations"].items()
-                if isinstance(ev, dict) and ev.get("score", 10) < 9
-            ]
-            steps_excellent = [
-                sk for sk, ev in iter_data["evaluations"].items()
-                if isinstance(ev, dict) and ev.get("score", 0) >= 9
-            ]
-
-            if steps_excellent:
-                st.success(f"✅ {len(steps_excellent)} krok(ów) bez konieczności zmian (≥9/10): " +
-                           ", ".join(prompts_snap[sk]["step_name"] for sk in steps_excellent if sk in prompts_snap))
-
-            if not steps_needing_work:
-                st.success("🎉 Wszystkie ocenione kroki mają wynik ≥9/10! Nie ma co poprawiać.")
+            st.subheader(f"Iteracja {cur['number']} — Propozycje ulepszeń")
+            prov = _lab()["provider"]; mdl = _lab()["model"]
+            prompts_snap = cur["prompts"]
+            needs_work = [sk for sk,ev in cur["evaluations"].items()
+                          if isinstance(ev,dict) and ev.get("score",10)<9]
+            perfect = [sk for sk,ev in cur["evaluations"].items()
+                       if isinstance(ev,dict) and ev.get("score",0)>=9]
+            if perfect:
+                st.success(f"✅ {len(perfect)} krok(ów) bez zmian (≥9/10): " +
+                           ", ".join(prompts_snap[sk]["step_name"] for sk in perfect if sk in prompts_snap))
+            if not needs_work:
+                st.success("🎉 Wszystkie kroki ≥9/10!"); 
             else:
-                # Generate proposals button
-                missing_proposals = [sk for sk in steps_needing_work if sk not in iter_data["proposals"]]
-                if missing_proposals and st.button(f"🤖 Wygeneruj propozycje dla {len(missing_proposals)} kroków",
-                                                   type="primary"):
-                    prop_bar = st.progress(0)
-                    prop_ph = st.empty()
-                    for idx, sk in enumerate(missing_proposals):
-                        prop_ph.info(f"⏳ Ulepszam {idx + 1}/{len(missing_proposals)}: {prompts_snap[sk]['step_name']}")
-                        prop_bar.progress((idx + 1) / max(len(missing_proposals), 1))
-                        prop = improve_prompt(
-                            step_key=sk,
-                            step_name=prompts_snap[sk]["step_name"],
-                            system_prompt=prompts_snap[sk]["system"],
-                            user_prompt=prompts_snap[sk]["user"],
-                            evaluation=iter_data["evaluations"][sk],
-                            provider=provider, model=model
-                        )
-                        iter_data["proposals"][sk] = {**prop, "approved": False}
-                    prop_bar.empty()
-                    prop_ph.empty()
-                    st.success("✅ Propozycje wygenerowane!")
-                    st.rerun()
+                missing = [sk for sk in needs_work if sk not in cur["proposals"]]
+                if missing:
+                    if st.button(f"🤖 Wygeneruj propozycje dla {len(missing)} kroków", type="primary"):
+                        pb = st.progress(0); pph = st.empty()
+                        for i,sk in enumerate(missing):
+                            pph.info(f"Ulepszam {i+1}/{len(missing)}: {prompts_snap[sk]['step_name']}")
+                            pb.progress((i+1)/max(len(missing),1))
+                            prop = improve_prompt(sk, prompts_snap[sk]["step_name"],
+                                                  prompts_snap[sk]["system"], prompts_snap[sk]["user"],
+                                                  cur["evaluations"][sk], prov, mdl)
+                            cur["proposals"][sk] = {**prop, "approved": False}
+                        pb.empty(); pph.empty()
+                        st.success("Propozycje gotowe!"); st.rerun()
 
-                # Show proposals
-                if iter_data["proposals"]:
+                if cur["proposals"]:
+                    # ── Hurtowe zatwierdzanie ────────────────────────────
+                    ba1, ba2, _ = st.columns([2, 2, 4])
+                    if ba1.button("✅ Zatwierdź wszystkie", type="primary"):
+                        for sk in cur["proposals"]: cur["proposals"][sk]["approved"] = True
+                        st.rerun()
+                    if ba2.button("❌ Odrzuć wszystkie"):
+                        for sk in cur["proposals"]: cur["proposals"][sk]["approved"] = False
+                        st.rerun()
                     st.markdown("---")
-                    for sk in steps_needing_work:
-                        if sk not in iter_data["proposals"]:
-                            continue
-                        prop = iter_data["proposals"][sk]
-                        ev = iter_data["evaluations"].get(sk, {})
-                        step_name = prompts_snap[sk]["step_name"]
-                        approved = prop.get("approved", False)
-                        icon = "✅" if approved else "⬜"
 
-                        with st.expander(f"{icon} Krok: **{step_name}** (ocena: {ev.get('score', '?')}/10)",
-                                         expanded=not approved):
+                    for sk in needs_work:
+                        if sk not in cur["proposals"]: continue
+                        prop = cur["proposals"][sk]
+                        ev = cur["evaluations"].get(sk, {})
+                        sname = prompts_snap[sk]["step_name"]
+                        approved = prop.get("approved", False)
+
+                        with st.expander(f"{'✅' if approved else '⬜'} **{sname}** — ocena: {ev.get('score','?')}/10", expanded=not approved):
                             if prop.get("changes_made"):
                                 st.info("📝 Zmiany: " + " | ".join(prop["changes_made"]))
-                            if prop.get("rationale"):
-                                st.caption(f"Uzasadnienie: {prop['rationale']}")
 
-                            pc1, pc2 = st.columns(2)
-                            with pc1:
-                                st.markdown("**PRZED (system prompt):**")
-                                st.text_area("", value=prompts_snap[sk]["system"], height=300, disabled=True,
-                                             key=f"sys_before_{sk}_{iter_data['number']}")
-                            with pc2:
-                                st.markdown("**PO (system prompt):**")
-                                st.text_area("", value=prop.get("improved_system_prompt", ""), height=300,
-                                             disabled=True, key=f"sys_after_{sk}_{iter_data['number']}")
+                            # ── System Prompt PRZED / PO ─────────────────
+                            st.markdown("##### 🔧 System Prompt")
+                            sp1, sp2 = st.columns(2)
+                            sp1.markdown("**PRZED:**")
+                            sp1.text_area("", value=prompts_snap[sk]["system"], height=250, disabled=True,
+                                          key=f"sbef_{sk}_{cur['number']}")
+                            sp2.markdown("**PO:**")
+                            sp2.text_area("", value=prop.get("improved_system_prompt",""), height=250, disabled=True,
+                                          key=f"saft_{sk}_{cur['number']}")
+                            with st.expander("Diff — System Prompt"):
+                                st.code(_diff(prompts_snap[sk]["system"], prop.get("improved_system_prompt","")), language="diff")
 
-                            with st.expander("Pokaż diff (system prompt)"):
-                                diff = _make_diff(prompts_snap[sk]["system"],
-                                                  prop.get("improved_system_prompt", ""))
-                                st.code(diff, language="diff")
+                            # ── User Prompt PRZED / PO ───────────────────
+                            st.markdown("##### 📨 User Prompt")
+                            up1, up2 = st.columns(2)
+                            up1.markdown("**PRZED:**")
+                            up1.text_area("", value=prompts_snap[sk]["user"], height=150, disabled=True,
+                                          key=f"ubef_{sk}_{cur['number']}")
+                            up2.markdown("**PO:**")
+                            up2.text_area("", value=prop.get("improved_user_prompt",""), height=150, disabled=True,
+                                          key=f"uaft_{sk}_{cur['number']}")
+                            with st.expander("Diff — User Prompt"):
+                                st.code(_diff(prompts_snap[sk]["user"], prop.get("improved_user_prompt","")), language="diff")
 
-                            # Approve toggle
-                            new_approved = st.checkbox(
-                                f"☑ Zatwierdź ulepszenie dla '{step_name}'",
-                                value=approved,
-                                key=f"approve_{sk}_{iter_data['number']}"
-                            )
-                            prop["approved"] = new_approved
+                            # Approve checkbox
+                            prop["approved"] = st.checkbox(f"☑ Zatwierdź zmianę dla '{sname}'",
+                                                           value=approved, key=f"appr_{sk}_{cur['number']}")
 
-                    # Apply approved & create next iteration
-                    approved_count = sum(1 for p in iter_data["proposals"].values() if p.get("approved"))
+                    approved_count = sum(1 for p in cur["proposals"].values() if p.get("approved"))
                     if approved_count > 0:
                         st.divider()
-                        if st.button(f"✅ Zastosuj {approved_count} zatwierdzonych zmian → Utwórz Iterację {iter_data['number'] + 1}",
+                        if st.button(f"✅ Zastosuj {approved_count} zmian → Iteracja {cur['number']+1}",
                                      type="primary", use_container_width=True):
-                            # Build new prompts by applying approved proposals
                             new_prompts = {}
-                            for sk, step_info in prompts_snap.items():
-                                if sk in iter_data["proposals"] and iter_data["proposals"][sk].get("approved"):
-                                    prop = iter_data["proposals"][sk]
-                                    new_prompts[sk] = {
-                                        **step_info,
-                                        "system": prop.get("improved_system_prompt", step_info["system"]),
-                                        "user": prop.get("improved_user_prompt", step_info["user"]),
-                                    }
+                            for sk, info in prompts_snap.items():
+                                p = cur["proposals"].get(sk)
+                                if p and p.get("approved"):
+                                    new_prompts[sk] = {**info,
+                                                       "system": p.get("improved_system_prompt", info["system"]),
+                                                       "user": p.get("improved_user_prompt", info["user"])}
                                 else:
-                                    new_prompts[sk] = step_info
-
-                            # Create new iteration placeholder (test not run yet)
-                            new_iter = {
-                                "number": iter_data["number"] + 1,
-                                "prompts": new_prompts,
-                                "outputs": {},
-                                "evaluations": {},
-                                "proposals": {},
-                                "approved_keys": [],
-                                "pending_test": True,
-                            }
-                            _lab()["iterations"].append(new_iter)
-                            st.success(f"✅ Iteracja {new_iter['number']} przygotowana! "
-                                       "Wróć do 'Konfiguracja testu' i uruchom pipeline z nowymi promptami.")
-                            st.info("💡 Wskazówka: W zakładce 'Konfiguracja testu' kliknij ponownie 'Uruchom test' "
-                                    "— użyje nowych, ulepszonych promptów z tej iteracji automatycznie.")
+                                    new_prompts[sk] = dict(info)
+                            _lab()["iterations"].append({
+                                "number": cur["number"]+1, "prompts": new_prompts,
+                                "outputs": {}, "evaluations": {}, "proposals": {}, "pending_test": True
+                            })
+                            st.success("Iteracja przygotowana! Wróć do 'Test manualny' i uruchom pipeline.")
                             st.rerun()
 
     # =========================================================
-    # TAB 4 — HISTORIA WERSJI
+    # TAB 5 — HISTORIA
     # =========================================================
     with tab_history:
         iters = _lab()["iterations"]
         if not iters:
-            st.info("ℹ️ Brak historii. Uruchom pierwszą iterację.")
+            st.info("Brak historii.")
         else:
-            st.subheader("Historia iteracji")
-
-            # Summary table
+            st.subheader("Historia wszystkich iteracji")
             rows = []
             for it in iters:
-                evals = it.get("evaluations", {})
-                scores = [e.get("score", 0) for e in evals.values() if isinstance(e, dict) and "score" in e]
-                avg = f"{sum(scores)/len(scores):.1f}" if scores else "—"
-                approved = sum(1 for p in it.get("proposals", {}).values() if p.get("approved"))
-                pending = "⏳ Czeka na test" if it.get("pending_test") and not it.get("outputs") else "✅"
+                ev = it.get("evaluations",{})
+                sc = [e.get("score",0) for e in ev.values() if isinstance(e,dict) and "score" in e]
                 rows.append({
                     "Iteracja": it["number"],
-                    "Średnia ocena": avg,
-                    "Ocenionych kroków": len(scores),
-                    "Zatwierdzonych zmian": approved,
-                    "Status": pending,
+                    "Tryb": "🔄 Auto" if it.get("auto") else "✋ Ręczny",
+                    "Avg score": f"{sum(sc)/len(sc):.1f}" if sc else "—",
+                    "Ocenione": len(sc),
+                    "Ulepszone": len(it.get("proposals",{})),
+                    "Status": "⏳ Czeka" if it.get("pending_test") and not it.get("outputs") else "✅",
                 })
-
-            import pandas as pd
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
             st.divider()
 
-            # Version comparison
             if len(iters) >= 2:
-                st.subheader("Porównaj dwie wersje")
-                iter_labels = {it["number"]: f"Iteracja {it['number']}" for it in iters}
+                st.subheader("Porównaj dwie iteracje")
+                iter_map = {it["number"]: it for it in iters}
                 hc1, hc2 = st.columns(2)
-                ver_a = hc1.selectbox("Wersja A:", list(iter_labels.keys()),
-                                      format_func=lambda x: iter_labels[x], key="hist_a")
-                ver_b = hc2.selectbox("Wersja B:", list(iter_labels.keys()),
-                                      index=len(iters) - 1,
-                                      format_func=lambda x: iter_labels[x], key="hist_b")
-
-                iter_a = next((it for it in iters if it["number"] == ver_a), None)
-                iter_b = next((it for it in iters if it["number"] == ver_b), None)
-
-                if iter_a and iter_b and ver_a != ver_b:
-                    all_steps = list(iter_a["prompts"].keys())
-                    for sk in all_steps:
-                        pa = iter_a["prompts"].get(sk, {})
-                        pb = iter_b["prompts"].get(sk, {})
-                        sys_a = pa.get("system", "")
-                        sys_b = pb.get("system", "")
-                        if sys_a == sys_b:
-                            continue  # No change, skip
-                        with st.expander(f"📝 {pa.get('step_name', sk)}"):
-                            diff = _make_diff(sys_a, sys_b)
-                            st.code(diff, language="diff")
-                else:
-                    st.info("Wybierz dwie różne iteracje do porównania.")
+                va = hc1.selectbox("Wersja A:", sorted(iter_map.keys()), key="ha")
+                vb = hc2.selectbox("Wersja B:", sorted(iter_map.keys()), index=len(iters)-1, key="hb")
+                if va != vb:
+                    ia = iter_map[va]; ib = iter_map[vb]
+                    changed = [sk for sk in ia["prompts"] if sk in ib["prompts"] and
+                               (ia["prompts"][sk]["system"] != ib["prompts"][sk]["system"] or
+                                ia["prompts"][sk]["user"] != ib["prompts"][sk]["user"])]
+                    if not changed:
+                        st.info("Brak różnic między wybranymi iteracjami.")
+                    else:
+                        for sk in changed:
+                            pa = ia["prompts"][sk]; pb = ib["prompts"][sk]
+                            with st.expander(f"📝 {pa.get('step_name',sk)}"):
+                                st.markdown("**System Prompt diff:**")
+                                st.code(_diff(pa["system"], pb["system"]), language="diff")
+                                if pa["user"] != pb["user"]:
+                                    st.markdown("**User Prompt diff:**")
+                                    st.code(_diff(pa["user"], pb["user"]), language="diff")
 
             st.divider()
-            # Export to JSON
-            if st.button("📥 Eksportuj całą sesję do JSON"):
-                export_data = {
-                    "test_job": _lab()["test_job"],
-                    "iterations": []
-                }
-                for it in iters:
-                    export_data["iterations"].append({
-                        "number": it["number"],
-                        "prompts": {
-                            sk: {"step_name": v["step_name"], "system": v["system"], "user": v["user"]}
-                            for sk, v in it["prompts"].items()
-                        },
-                        "evaluations": it.get("evaluations", {}),
-                    })
-                st.download_button(
-                    "⬇️ Pobierz session.json",
-                    data=json.dumps(export_data, ensure_ascii=False, indent=2),
-                    file_name="prompt_lab_session.json",
-                    mime="application/json"
-                )
+            if st.button("📥 Eksportuj sesję do JSON"):
+                export = {"test_job": _lab()["test_job"], "iterations": [
+                    {"number": it["number"],
+                     "prompts": {sk: {"step_name": v["step_name"], "system": v["system"], "user": v["user"]}
+                                 for sk,v in it["prompts"].items()},
+                     "evaluations": it.get("evaluations",{})}
+                    for it in iters
+                ]}
+                st.download_button("⬇️ Pobierz session.json",
+                                   data=json.dumps(export, ensure_ascii=False, indent=2),
+                                   file_name="prompt_lab_session.json", mime="application/json")
 
-            # Reset session
             st.divider()
-            if st.button("🗑️ Resetuj sesję laboratorium", type="secondary"):
+            if st.button("🗑️ Resetuj sesję", type="secondary"):
                 st.session_state["prompt_lab"] = None
-                _init_lab()
-                st.success("Sesja zresetowana.")
-                st.rerun()
+                _init()
+                st.success("Sesja zresetowana."); st.rerun()

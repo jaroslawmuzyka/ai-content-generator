@@ -243,3 +243,124 @@ def improve_prompt(step_key, step_name, system_prompt, user_prompt, evaluation, 
         logger.error(f"improve_prompt JSON parse error: {e}")
         return {"improved_system_prompt": system_prompt, "improved_user_prompt": user_prompt,
                 "changes_made": ["Błąd parsowania propozycji"], "rationale": ""}
+
+
+def _prompts_to_steps(prompts_snap):
+    """Konwertuje snapshot promptów z lab na listę kroków dla run_lab_pipeline."""
+    steps = []
+    for sk, info in prompts_snap.items():
+        steps.append({
+            "step_key": sk,
+            "step_name": info.get("step_name", sk),
+            "step_order": info.get("step_order", 999),
+            "system_prompt": info["system"],
+            "user_prompt": info["user"],
+            "is_active": info.get("is_active", True),
+            "temperature": info.get("temperature", 0.7),
+            "max_tokens": info.get("max_tokens", 1500),
+            "provider": info.get("provider"),
+            "model": info.get("model"),
+        })
+    steps.sort(key=lambda s: s["step_order"])
+    return steps
+
+
+def run_auto_loop(initial_steps, job_data, provider, model, strategy_data,
+                  n_iterations, min_score_threshold=9, progress_cb=None):
+    """
+    Uruchamia automatyczną pętlę: test → ocena → ulepszenie → zastosowanie, N razy.
+    Zwraca listę iteracji (dict) z pełnymi danymi każdej rundy.
+    """
+    # Build initial prompts snapshot
+    current_prompts = {
+        s["step_key"]: {
+            "system": s["system_prompt"],
+            "user": s["user_prompt"],
+            "step_name": s.get("step_name", s["step_key"]),
+            "step_order": s.get("step_order", 999),
+            "is_active": s.get("is_active", True),
+            "temperature": s.get("temperature", 0.7),
+            "max_tokens": s.get("max_tokens", 1500),
+        }
+        for s in initial_steps
+    }
+
+    all_iterations = []
+
+    for iter_num in range(1, n_iterations + 1):
+        iter_result = {
+            "number": iter_num,
+            "prompts": {k: dict(v) for k, v in current_prompts.items()},
+            "outputs": {},
+            "evaluations": {},
+            "proposals": {},
+            "auto": True,
+        }
+
+        # ── FAZA 1: Pipeline ──────────────────────────────────────────
+        if progress_cb:
+            progress_cb(iter_num, n_iterations, "pipeline", None, 0, 0)
+
+        steps_list = _prompts_to_steps(current_prompts)
+        total_steps = len(steps_list)
+
+        def pipeline_cb(step_name, idx, total):
+            if progress_cb:
+                progress_cb(iter_num, n_iterations, "pipeline", step_name, idx, total)
+
+        outputs = run_lab_pipeline(steps_list, job_data, provider, model, strategy_data, pipeline_cb)
+        iter_result["outputs"] = outputs
+
+        # ── FAZA 2: Ocena ─────────────────────────────────────────────
+        active_keys = [sk for sk, info in current_prompts.items() if info.get("is_active", True)]
+        for idx, sk in enumerate(active_keys):
+            if progress_cb:
+                progress_cb(iter_num, n_iterations, "eval", current_prompts[sk]["step_name"], idx, len(active_keys))
+            ev = evaluate_step(
+                step_key=sk,
+                step_name=current_prompts[sk]["step_name"],
+                system_prompt=current_prompts[sk]["system"],
+                output_text=outputs.get(sk, {}).get("output", ""),
+                job_data=job_data,
+                provider=provider,
+                model=model
+            )
+            iter_result["evaluations"][sk] = ev
+
+        # ── FAZA 3: Ulepszenie kroków poniżej progu ───────────────────
+        steps_to_improve = [
+            sk for sk, ev in iter_result["evaluations"].items()
+            if ev.get("score", 10) < min_score_threshold
+        ]
+        for idx, sk in enumerate(steps_to_improve):
+            if progress_cb:
+                progress_cb(iter_num, n_iterations, "improve", current_prompts[sk]["step_name"], idx, len(steps_to_improve))
+            prop = improve_prompt(
+                step_key=sk,
+                step_name=current_prompts[sk]["step_name"],
+                system_prompt=current_prompts[sk]["system"],
+                user_prompt=current_prompts[sk]["user"],
+                evaluation=iter_result["evaluations"][sk],
+                provider=provider,
+                model=model
+            )
+            iter_result["proposals"][sk] = {**prop, "approved": True}
+
+        all_iterations.append(iter_result)
+
+        # ── FAZA 4: Zastosuj ulepszenia jako baza kolejnej iteracji ───
+        if iter_num < n_iterations:
+            new_prompts = {}
+            for sk, info in current_prompts.items():
+                prop = iter_result["proposals"].get(sk)
+                if prop:
+                    new_prompts[sk] = {
+                        **info,
+                        "system": prop.get("improved_system_prompt", info["system"]),
+                        "user": prop.get("improved_user_prompt", info["user"]),
+                    }
+                else:
+                    new_prompts[sk] = dict(info)
+            current_prompts = new_prompts
+
+    return all_iterations
