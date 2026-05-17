@@ -520,7 +520,7 @@ def render():
                             return "background-color: #7a1a1a; color: white"
 
                     st.dataframe(
-                        df_detail.style.applymap(color_score),
+                        df_detail.style.map(color_score),
                         use_container_width=True
                     )
 
