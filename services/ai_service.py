@@ -86,7 +86,10 @@ def generate_ai_response(provider, model, system_prompt, user_prompt, temperatur
         "temperature": temperature,
     }
     if max_tokens:
-        kwargs["max_tokens"] = max_tokens
+        if "gpt-5" in model or "o1" in model or "o3" in model:
+            kwargs["max_completion_tokens"] = max_tokens
+        else:
+            kwargs["max_tokens"] = max_tokens
         
     # OpenRouter wymaga dodatkowych nagłówków identyfikujących w celu zliczania statystyk
     if provider == "openrouter":
