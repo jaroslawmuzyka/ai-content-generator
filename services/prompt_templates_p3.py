@@ -1,6 +1,6 @@
 PROMPTS_P3 = [
     {
-        "order": 66, "key": "meta_description", "name": "Generowanie Meta Description", "stage_group": "seo", "output_type": "text", "max_tokens": 200,
+        "order": 66, "key": "meta_description", "name": "Generowanie Meta Description", "stage_group": "seo", "output_type": "text", "max_tokens": 10000,
         "sys": """# Rola
 Jesteś copywriterem specjalizującym się w pisaniu krótkich, wysokokonwertujących tekstów reklamowych.
 
@@ -40,7 +40,7 @@ Czy tekst jest dynamiczny? Czy ma CTA? Czy ma około 150 znaków?""",
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 85, "key": "faq", "name": "Generowanie FAQ", "stage_group": "seo", "output_type": "html", "max_tokens": 1500,
+        "order": 85, "key": "faq", "name": "Generowanie FAQ", "stage_group": "seo", "output_type": "html", "max_tokens": 10000,
         "sys": """# Rola
 Jesteś specjalistą od Customer Success i SEO, który rozwiązuje problemy klientów przed ich powstaniem.
 
@@ -79,7 +79,7 @@ Nie wolno:
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<finalny_html>\n{{final_html}}\n</finalny_html>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 70, "key": "html_formatting", "name": "Formatowanie HTML", "stage_group": "technical", "output_type": "html", "max_tokens": 3000,
+        "order": 70, "key": "html_formatting", "name": "Formatowanie HTML", "stage_group": "technical", "output_type": "html", "max_tokens": 10000,
         "sys": """# Rola
 Jesteś rygorystycznym deweloperem front-end dbającym o doskonałą semantykę i formatowanie wizualne tekstu.
 
@@ -112,7 +112,7 @@ Zwróć sam, gotowy kod HTML.""",
         "user": """<język>\n{{language}}\n</język>\n\n<tekst_pierwotny>\n{{previous_steps.attractiveness_optimization}}\n</tekst_pierwotny>\n\n<tekst_zapasowy_jeśli_brak_attractiveness>\n{{previous_steps.humanization}}\n</tekst_zapasowy_jeśli_brak_attractiveness>\n\n<tekst_zapasowy_jeśli_brak_humanization>\n{{previous_steps.seo_section_writer}}\n</tekst_zapasowy_jeśli_brak_humanization>"""
     },
     {
-        "order": 80, "key": "html_cleanup", "name": "Czyszczenie HTML", "stage_group": "technical", "output_type": "html", "max_tokens": 3000,
+        "order": 80, "key": "html_cleanup", "name": "Czyszczenie HTML", "stage_group": "technical", "output_type": "html", "max_tokens": 10000,
         "sys": """# Rola
 Jesteś robotem sanitarnym kontrolującym w3c standard compliance i czystość kodu.
 
@@ -142,7 +142,7 @@ Wyłącznie kod HTML.""",
         "user": """<html_do_oczyszczenia>\n{{current_step_output}}\n</html_do_oczyszczenia>"""
     },
     {
-        "order": 90, "key": "seo_qa", "name": "Ocena jakości SEO", "stage_group": "seo", "output_type": "json", "max_tokens": 1500,
+        "order": 90, "key": "seo_qa", "name": "Ocena jakości SEO", "stage_group": "seo", "output_type": "json", "max_tokens": 10000,
         "sys": """# Rola
 Jesteś bezlitosnym Analitykiem Jakości SEO i Audytorem.
 
@@ -192,7 +192,7 @@ Oczekiwany JSON:
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<frazy_dodatkowe>\n{{secondary_keywords}}\n</frazy_dodatkowe>\n\n<nagłówki>\n{{headings}}\n</nagłówki>\n\n<finalny_html>\n{{final_html}}\n</finalny_html>\n\n<analiza_seo>\n{{previous_steps}}\n</analiza_seo>"""
     },
     {
-        "order": 100, "key": "attractiveness_qa", "name": "Ocena atrakcyjności tekstu", "stage_group": "attractiveness", "output_type": "json", "max_tokens": 1500,
+        "order": 100, "key": "attractiveness_qa", "name": "Ocena atrakcyjności tekstu", "stage_group": "attractiveness", "output_type": "json", "max_tokens": 10000,
         "sys": """# Rola
 Jesteś brutalnym redaktorem magazynu i dyrektorem kreatywnym oceniającym angażowanie uwagi.
 
