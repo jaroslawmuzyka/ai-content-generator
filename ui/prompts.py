@@ -77,6 +77,28 @@ def render():
 
     st.divider()
 
+    # --- TEMP: USUWANIE DUPLIKATÓW ---
+    if st.button("🗑️ [ZAAWANSOWANE] Usuń zduplikowane zestawy w tej kampanii", type="secondary"):
+        with st.spinner("Czyszczenie..."):
+            client = get_supabase_client()
+            sets = client.table("campaign_prompt_sets").select("id, name, content_type").eq("campaign_id", active_camp_id).order("created_at").execute().data
+            seen_types = set()
+            deleted = 0
+            for s in sets:
+                ctype = s["content_type"]
+                if ctype in seen_types:
+                    client.table("campaign_prompt_steps").delete().eq("campaign_prompt_set_id", s["id"]).execute()
+                    client.table("campaign_prompt_sets").delete().eq("id", s["id"]).execute()
+                    deleted += 1
+                else:
+                    seen_types.add(ctype)
+            if deleted > 0:
+                st.success(f"Usunięto {deleted} zduplikowanych zestawów. Odświeżam...")
+            else:
+                st.info("Brak duplikatów do usunięcia.")
+            st.rerun()
+    # --------------------------------
+
     # ------------------------------------------------------------------
     # WYBÓR ZESTAWU DO EDYCJI
     # ------------------------------------------------------------------
