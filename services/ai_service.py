@@ -142,7 +142,7 @@ def generate_ai_response(provider, model, system_prompt, user_prompt, temperatur
             elif e.status_code == 404:
                 error_msg = f"Nie znaleziono modelu (Błąd 404). Model '{model}' może być niedostępny dla tego klucza."
             elif e.status_code == 400:
-                error_msg = f"Błędne zapytanie (Błąd 400). Prawdopodobnie przekroczono limit tokenów dla modelu '{model}'."
+                error_msg = f"Błędne zapytanie (Błąd 400) dla modelu '{model}'. Szczegóły: {str(e)}"
             
             if e.status_code >= 500 and attempt < retries:
                 # Warto powtarzać tylko błędy leżące po stronie dostawcy (zaczynające się na 5xx)
