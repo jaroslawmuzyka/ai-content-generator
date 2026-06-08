@@ -5,6 +5,7 @@ from services.prompt_service import (
     update_campaign_prompt_set
 )
 from utils.constants import PROVIDERS, MODELS_BY_PROVIDER
+from db.supabase_client import get_supabase_client
 
 # Opisy etapów dla użytkownika
 STEP_DESCRIPTIONS = {
