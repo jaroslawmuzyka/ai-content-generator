@@ -9,26 +9,31 @@ def seed_default_prompts():
     client = get_supabase_client()
     if not client:
         return False, "Brak połączenia z bazą danych."
-        
+
     content_types = ["ecommerce_category", "ecommerce_product", "blog_post", "landing_page"]
-    
     steps_template = PROMPTS_P1 + PROMPTS_P2 + PROMPTS_P3
-    
+
     try:
-        existing = client.table("default_prompt_sets").select("id").limit(1).execute()
-        if existing.data:
-            pass
-            
+        # ── Krok 1: usuń WSZYSTKIE istniejące zestawy domyślne (kroki kasowane kaskadowo przez FK) ──
+        existing_sets = client.table("default_prompt_sets").select("id").execute()
+        if existing_sets.data:
+            existing_ids = [r["id"] for r in existing_sets.data]
+            # Usuń najpierw kroki (brak ON DELETE CASCADE w niektórych konfiguracjach)
+            for sid in existing_ids:
+                client.table("default_prompt_steps").delete().eq("default_prompt_set_id", sid).execute()
+            client.table("default_prompt_sets").delete().in_("id", existing_ids).execute()
+
+        # ── Krok 2: wstaw świeże zestawy i kroki ─────────────────────────────────────────────────
         for ct in content_types:
             set_data = {
                 "name": f"Zestaw bazowy v3 (Standard XML): {ct.upper()}",
                 "content_type": ct,
                 "language": "pl",
-                "description": f"Zestaw 13 rygorystycznych promptów SEO oraz Atrakcyjności (System/User separation)."
+                "description": "Zestaw promptów SEO + Atrakcyjność (System/User XML)."
             }
             res_set = client.table("default_prompt_sets").insert(set_data).execute()
             set_id = res_set.data[0]["id"]
-            
+
             for s in steps_template:
                 step_data = {
                     "default_prompt_set_id": set_id,
@@ -45,10 +50,11 @@ def seed_default_prompts():
                     "stage_group": s.get("stage_group", "seo")
                 }
                 client.table("default_prompt_steps").insert(step_data).execute()
-                
-        return True, "Zakończono. Domyślne prompty zostały załadowane do bazy danych."
+
+        return True, f"✅ Zainicjowano {len(content_types)} zestawy × {len(steps_template)} kroków. Stare duplikaty zostały usunięte."
     except Exception as e:
         return False, f"Błąd podczas instalacji promptów: {str(e)}"
+
 
 # ---------------------------------------------------------------------------
 # Zarządzanie promptami (CRUD operacyjny)
