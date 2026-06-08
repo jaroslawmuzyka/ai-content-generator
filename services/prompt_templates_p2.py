@@ -1,6 +1,6 @@
 PROMPTS_P2 = [
     {
-        "order": 40, "key": "seo_section_writer", "name": "Pisanie sekcji", "stage_group": "seo", "output_type": "text", "max_tokens": 10000,
+        "order": 40, "key": "seo_section_writer", "name": "Pisanie sekcji", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś copywriterem specjalizującym się w pisaniu merytorycznych tekstów wysokiej jakości. Nie jesteś typowym SEO-wcem, priorytetem jest dla Ciebie wartość dla czytelnika.
 
@@ -49,7 +49,7 @@ Czy po przeczytaniu pierwszego zdania wiem, o czym będzie ten fragment? Czy tek
         "user": """<język>\n{{language}}\n</język>\n\n<nagłówek>\n{{heading}}\n</nagłówek>\n\n<wszystkie_nagłówki>\n{{headings}}\n</wszystkie_nagłówki>\n\n<wiedza>\n{{knowledge}}\n</wiedza>\n\n<frazy>\n{{secondary_keywords}}\n</frazy>\n\n<już_napisana_część>\n{{already_written_part}}\n</już_napisana_część>\n\n<kontekst_makro>\n{{main_keyword}}\n</kontekst_makro>\n\n<dodatkowe_informacje>\n{{additional_notes}}\n</dodatkowe_informacje>\n\n<kontekst>\n{{context}}\n</kontekst>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 45, "key": "seo_verification", "name": "Weryfikacja spójności artykułu", "stage_group": "seo", "output_type": "text", "max_tokens": 10000,
+        "order": 45, "key": "seo_verification", "name": "Weryfikacja spójności artykułu", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś doświadczonym redaktorem naczelnym, który sprawdza cały artykuł przed publikacją.
 
@@ -91,7 +91,7 @@ Zwróć pełny, poprawiony artykuł ze wszystkimi sekcjami H2. Bez żadnych kome
         "user": """<język>\n{{language}}\n</język>\n\n<cały_artykuł>\n{{previous_steps.seo_section_writer}}\n</cały_artykuł>\n\n<wszystkie_nagłówki>\n{{headings}}\n</wszystkie_nagłówki>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<frazy_poboczne>\n{{secondary_keywords}}\n</frazy_poboczne>"""
     },
     {
-        "order": 50, "key": "readability_perplexity", "name": "Poprawa czytelności (Perplexity)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 10000,
+        "order": 50, "key": "readability_perplexity", "name": "Poprawa czytelności (Perplexity)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś ekspertem UX writingu. Twój cel to uczynić skomplikowany tekst lekkim i łatwym w odbiorze, nawet na smartfonie na stojąco w autobusie.
 
@@ -125,7 +125,7 @@ Zwróć przetworzony pełny tekst bez komentarzy wokół niego.""",
         "user": """<język>\n{{language}}\n</język>\n\n<tekst_pierwotny>\n{{current_step_output}}\n</tekst_pierwotny>"""
     },
     {
-        "order": 55, "key": "humanization", "name": "Humanizacja tekstu", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 10000,
+        "order": 55, "key": "humanization", "name": "Humanizacja tekstu", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś ghostwriterem, który bierze sztuczne teksty i nakłada na nie filtr "człowieczeństwa".
 
@@ -158,7 +158,7 @@ Pełny, zhumanizowany tekst. Wyłącznie.""",
         "user": """<język>\n{{language}}\n</język>\n\n<tekst_pierwotny>\n{{current_step_output}}\n</tekst_pierwotny>"""
     },
     {
-        "order": 60, "key": "attractiveness_optimization", "name": "Wzmocnienie atrakcyjności", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 10000,
+        "order": 60, "key": "attractiveness_optimization", "name": "Wzmocnienie atrakcyjności", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś głównym specjalistą ds. konwersji i Copywriting Chiefem w agencji.
 
@@ -193,7 +193,7 @@ Zwróć ostateczny, genialnie czytający się tekst przygotowany do wlania w kod
         "user": """<język>\n{{language}}\n</język>\n\n<tekst_pierwotny>\n{{current_step_output}}\n</tekst_pierwotny>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<frazy_dodatkowe>\n{{secondary_keywords}}\n</frazy_dodatkowe>\n\n<grupa_docelowa>\n{{target_audience}}\n</grupa_docelowa>\n\n<insight_konsumencki>\n{{consumer_insight}}\n</insight_konsumencki>\n\n<ton_marki>\n{{brand_tone}}\n</ton_marki>\n\n<frazy_zakazane>\n{{forbidden_phrases}}\n</frazy_zakazane>\n\n<frazy_wymagane>\n{{required_phrases}}\n</frazy_wymagane>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 65, "key": "meta_title", "name": "Generowanie Meta Title", "stage_group": "seo", "output_type": "text", "max_tokens": 10000,
+        "order": 65, "key": "meta_title", "name": "Generowanie Meta Title", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś analitykiem SEO zajmującym się CTR (Click-Through Rate).
 

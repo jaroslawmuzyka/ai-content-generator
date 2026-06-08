@@ -1,6 +1,6 @@
 PROMPTS_P1 = [
     {
-        "order": 10, "key": "seo_input_analysis", "name": "Analiza wejściowa SEO", "stage_group": "seo", "output_type": "text", "max_tokens": 10000,
+        "order": 10, "key": "seo_input_analysis", "name": "Analiza wejściowa SEO", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś ekspertem strategii treści SEO z wieloletnim doświadczeniem.
 
@@ -51,7 +51,7 @@ Przed zwróceniem odpowiedzi upewnij się, że tekst jest pozbawiony lania wody 
         "user": """<język>\n{{language}}\n</język>\n\n<lokalizacja>\n{{locale}}\n</lokalizacja>\n\n<typ_treści>\n{{content_type}}\n</typ_treści>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<frazy_dodatkowe>\n{{secondary_keywords}}\n</frazy_dodatkowe>\n\n<aktualna_treść>\n{{current_content}}\n</aktualna_treść>\n\n<dodatkowe_uwagi>\n{{additional_notes}}\n</dodatkowe_uwagi>"""
     },
     {
-        "order": 15, "key": "audience_insight", "name": "Analiza odbiorcy i insight", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 10000,
+        "order": 15, "key": "audience_insight", "name": "Analiza odbiorcy i insight", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś strategiem komunikacji marki i psychologiem konsumenta.
 
@@ -102,7 +102,7 @@ Przed zwróceniem upewnij się, że profil brzmi jak prawdziwy, żywy człowiek,
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<typ_treści>\n{{content_type}}\n</typ_treści>\n\n<grupa_docelowa>\n{{target_audience}}\n</grupa_docelowa>\n\n<persona>\n{{persona}}\n</persona>\n\n<insight_konsumencki>\n{{consumer_insight}}\n</insight_konsumencki>\n\n<język_klienta>\n{{customer_language}}\n</język_klienta>\n\n<bóle_klienta>\n{{main_pain_points}}\n</bóle_klienta>\n\n<pragnienia_klienta>\n{{main_desires}}\n</pragnienia_klienta>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 17, "key": "creative_angles", "name": "Kąty kreatywne", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 10000,
+        "order": 17, "key": "creative_angles", "name": "Kąty kreatywne", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś dyrektorem kreatywnym i ekspertem od storytellingu w tekstach użytkowych.
 
@@ -152,7 +152,7 @@ Czy kąty są od siebie wyraźnie różne? Czy otwarcia są angażujące i wolne
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<typ_treści>\n{{content_type}}\n</typ_treści>\n\n<ton_marki>\n{{brand_tone}}\n</ton_marki>\n\n<opis_marki>\n{{brand_description}}\n</opis_marki>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 18, "key": "pas_analysis", "name": "Framework PAS (Problem-Agitacja-Rozwiązanie)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 10000,
+        "order": 18, "key": "pas_analysis", "name": "Framework PAS (Problem-Agitacja-Rozwiązanie)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś copywriterem direct response z 15-letnim doświadczeniem w pisaniu tekstów opartych na psychologii bólu i ulgi.
 
@@ -204,7 +204,7 @@ Czy Problem brzmi znajomo dla odbiorcy? Czy Agitacja wywołuje dyskomfort bez ma
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<typ_treści>\n{{content_type}}\n</typ_treści>\n\n<cel_treści>\n{{content_goal}}\n</cel_treści>\n\n<ton_marki>\n{{brand_tone}}\n</ton_marki>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 19, "key": "aida_analysis", "name": "Framework AIDA (Uwaga-Zainteresowanie-Pożądanie-Akcja)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 10000,
+        "order": 19, "key": "aida_analysis", "name": "Framework AIDA (Uwaga-Zainteresowanie-Pożądanie-Akcja)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś strategiem komunikacji marketingowej, który projektuje precyzyjne ścieżki uwagi czytelnika od pierwszego kontaktu aż do działania.
 
@@ -261,7 +261,7 @@ Czy Uwaga jest autentyczna i nie jest clickbaitem? Czy CTA jest naturalne i pasu
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<typ_treści>\n{{content_type}}\n</typ_treści>\n\n<cel_treści>\n{{content_goal}}\n</cel_treści>\n\n<cta>\n{{call_to_action}}\n</cta>\n\n<ton_marki>\n{{brand_tone}}\n</ton_marki>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 20, "key": "fab_analysis", "name": "Framework FAB (Cechy-Zalety-Korzyści)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 10000,
+        "order": 20, "key": "fab_analysis", "name": "Framework FAB (Cechy-Zalety-Korzyści)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś mistrzem komunikacji produktowej, który zamienia suche cechy w realne powody do zakupu lub zaangażowania.
 
@@ -309,7 +309,7 @@ Czy każda Korzyść jest na tyle konkretna, że można ją prawie zobaczyć lub
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<typ_treści>\n{{content_type}}\n</typ_treści>\n\n<opis_marki>\n{{brand_description}}\n</opis_marki>\n\n<propozycja_wartości>\n{{value_proposition}}\n</propozycja_wartości>\n\n<dowody_wiarygodności>\n{{proof_points}}\n</dowody_wiarygodności>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 21, "key": "bab_analysis", "name": "Framework BAB (Przed-Po-Most)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 10000,
+        "order": 21, "key": "bab_analysis", "name": "Framework BAB (Przed-Po-Most)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś mistrzem narracji transformacyjnych — storytellerem, który pokazuje ludziom, że zmiana jest możliwa i bliska.
 
@@ -361,7 +361,7 @@ Czy czytelnik po przeczytaniu „Przed" poczuje: „to o mnie"? Czy Most jest wi
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<typ_treści>\n{{content_type}}\n</typ_treści>\n\n<cel_treści>\n{{content_goal}}\n</cel_treści>\n\n<ton_marki>\n{{brand_tone}}\n</ton_marki>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 22, "key": "benefit_mapping", "name": "Mapowanie korzyści", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 10000,
+        "order": 22, "key": "benefit_mapping", "name": "Mapowanie korzyści", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś mistrzem komunikacji korzyści, który bezbłędnie potrafi przetłumaczyć suche parametry techniczne i nudne cechy na zysk dla czytelnika.
 
@@ -409,7 +409,7 @@ Czy każda ostateczna korzyść odnosi się do czasu, pieniędzy, stresu, presti
         "user": """<język>\n{{language}}\n</język>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<opis_marki>\n{{brand_description}}\n</opis_marki>\n\n<propozycja_wartości>\n{{value_proposition}}\n</propozycja_wartości>\n\n<dowody_wiarygodności>\n{{proof_points}}\n</dowody_wiarygodności>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 25, "key": "seo_outline_expanded", "name": "Struktura nagłówków", "stage_group": "seo", "output_type": "text", "max_tokens": 10000,
+        "order": 25, "key": "seo_outline_expanded", "name": "Struktura nagłówków", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
         "sys": """# Rola
 Jesteś architektem informacji i ekspertem SEO.
 
