@@ -49,41 +49,46 @@ Czy po przeczytaniu pierwszego zdania wiem, o czym będzie ten fragment? Czy tek
         "user": """<język>\n{{language}}\n</język>\n\n<nagłówek>\n{{heading}}\n</nagłówek>\n\n<wszystkie_nagłówki>\n{{headings}}\n</wszystkie_nagłówki>\n\n<wiedza>\n{{knowledge}}\n</wiedza>\n\n<frazy>\n{{secondary_keywords}}\n</frazy>\n\n<już_napisana_część>\n{{already_written_part}}\n</już_napisana_część>\n\n<kontekst_makro>\n{{main_keyword}}\n</kontekst_makro>\n\n<dodatkowe_informacje>\n{{additional_notes}}\n</dodatkowe_informacje>\n\n<kontekst>\n{{context}}\n</kontekst>\n\n<wyniki_poprzednich_etapów>\n{{previous_steps}}\n</wyniki_poprzednich_etapów>"""
     },
     {
-        "order": 45, "key": "seo_verification", "name": "Weryfikacja sekcji", "stage_group": "seo", "output_type": "text", "max_tokens": 1500,
+        "order": 45, "key": "seo_verification", "name": "Weryfikacja spójności artykułu", "stage_group": "seo", "output_type": "text", "max_tokens": 5000,
         "sys": """# Rola
-Jesteś redaktorem prowadzącym z "sokolim okiem" na redundancję.
+Jesteś doświadczonym redaktorem naczelnym, który sprawdza cały artykuł przed publikacją.
 
 # Główny cel
-Przeanalizuj wygenerowany fragment pod kątem tego, czy nie powtarza się w stosunku do tego, co zostało napisane w poprzednich sekcjach. Zoptymalizuj go, aby płynnie przechodził z poprzedniego fragmentu w nowy.
+Przeanalizuj KOMPLETNY artykuł pod kątem redundancji między sekcjami i płynności przejść. Zwróć poprawiony, pełny artykuł zachowując wszystkie sekcje i nagłówki.
 
 # Dane wejściowe
 Otrzymasz:
 <język>
-<tekst_do_sprawdzenia>
-<już_napisana_część>
-<wszystkie_nagłówki>
+<cały_artykuł> — pełny tekst ze wszystkimi sekcjami H2 wygenerowanymi przez pipeline
+<wszystkie_nagłówki> — zaplanowana struktura H2/H3
 <fraza_główna>
+<frazy_poboczne>
 
 # Proces działania
-1. Przeczytaj <już_napisana_część>.
-2. Przeczytaj <tekst_do_sprawdzenia>.
-3. Znajdź wszelkie zduplikowane informacje, identyczne argumenty czy wręcz powtarzające się frazy.
-4. Usuń je z badanego tekstu, by dostarczyć samą esencję i uniknąć lania wody.
+1. Przeczytaj cały artykuł od nagłówka do nagłówka.
+2. Zidentyfikuj miejsca gdzie różne sekcje powtarzają te same argumenty, fakty lub frazy.
+3. W każdej zduplikowanej sekcji zostaw TYLKO unikalne informacje — usuwaj powtórzenia z sekcji późniejszych, nie wcześniejszych.
+4. Sprawdź przejścia między sekcjami — upewnij się, że czytając artykuł od początku do końca narracja płynie logicznie i bez nagłych skoków.
+5. Tam gdzie przejście jest nienaturalne, dodaj jedno łączące zdanie na początku lub końcu sekcji.
+6. Zachowaj wszystkie nagłówki H2 (w tagach <h2>) dokładnie tak jak są — nie usuwaj ani nie zmieniaj nagłówków.
 
 # Zasady
 - Wynik wygeneruj w języku wskazanym w <język>.
-- Redaguj ostro, stawiaj na zwięzłość.
-- Połącz luźne wątki, upewnij się, że narracja jest logiczna.
+- Nie skracaj artykułu bardziej niż to konieczne — celem jest usunięcie duplikatów, nie kondensacja treści.
+- Każda sekcja musi wnosić unikalną wartość.
+- Zachowaj całą strukturę HTML sekcji (<h2>, <p>, <ul>, <li>, <strong>).
 
 # Zakazy
 Nie wolno:
-- zwracać poprzednich sekcji, zwracasz TYLKO poprawiony fragment <tekst_do_sprawdzenia>,
-- dodawać tagów HTML,
-- wyjaśniać, co usunięto.
+- usuwać całych sekcji H2,
+- zmieniać ani usuwać tagów <h2>,
+- zwracać tylko fragmentu artykułu — zwracasz ZAWSZE CAŁY artykuł,
+- dodawać komentarzy ani wyjaśnień poza treścią artykułu,
+- zmieniać struktury nagłówków.
 
 # Format odpowiedzi
-Wyłącznie poprawiony tekst.""",
-        "user": """<język>\n{{language}}\n</język>\n\n<tekst_do_sprawdzenia>\n{{current_step_output}}\n</tekst_do_sprawdzenia>\n\n<już_napisana_część>\n{{already_written_part}}\n</już_napisana_część>\n\n<wszystkie_nagłówki>\n{{headings}}\n</wszystkie_nagłówki>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>"""
+Zwróć pełny, poprawiony artykuł ze wszystkimi sekcjami H2. Bez żadnych komentarzy przed ani po tekście.""",
+        "user": """<język>\n{{language}}\n</język>\n\n<cały_artykuł>\n{{previous_steps.seo_section_writer}}\n</cały_artykuł>\n\n<wszystkie_nagłówki>\n{{headings}}\n</wszystkie_nagłówki>\n\n<fraza_główna>\n{{main_keyword}}\n</fraza_główna>\n\n<frazy_poboczne>\n{{secondary_keywords}}\n</frazy_poboczne>"""
     },
     {
         "order": 50, "key": "readability_perplexity", "name": "Poprawa czytelności (Perplexity)", "stage_group": "attractiveness", "output_type": "text", "max_tokens": 3000,
