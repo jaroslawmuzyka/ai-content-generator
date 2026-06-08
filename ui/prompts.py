@@ -78,28 +78,6 @@ def render():
 
     st.divider()
 
-    # --- TEMP: USUWANIE DUPLIKATÓW ---
-    if st.button("🗑️ [ZAAWANSOWANE] Usuń zduplikowane zestawy w tej kampanii", type="secondary"):
-        with st.spinner("Czyszczenie..."):
-            client = get_supabase_client()
-            sets = client.table("campaign_prompt_sets").select("id, name, content_type").eq("campaign_id", active_camp_id).order("created_at").execute().data
-            seen_types = set()
-            deleted = 0
-            for s in sets:
-                ctype = s["content_type"]
-                if ctype in seen_types:
-                    client.table("campaign_prompt_steps").delete().eq("campaign_prompt_set_id", s["id"]).execute()
-                    client.table("campaign_prompt_sets").delete().eq("id", s["id"]).execute()
-                    deleted += 1
-                else:
-                    seen_types.add(ctype)
-            if deleted > 0:
-                st.success(f"Usunięto {deleted} zduplikowanych zestawów. Odświeżam...")
-            else:
-                st.info("Brak duplikatów do usunięcia.")
-            st.rerun()
-    # --------------------------------
-
     # ------------------------------------------------------------------
     # WYBÓR ZESTAWU DO EDYCJI
     # ------------------------------------------------------------------
@@ -198,19 +176,34 @@ def render():
             with st.form(f"form_step_{step['id']}", border=False):
                 col_p, col_m, col_t, col_tk = st.columns(4)
 
-                prov_list = list(MODELS_BY_PROVIDER.keys())
-                provider = col_p.selectbox(
+                prov_list = ["(Dziedzicz z zadania)"] + list(MODELS_BY_PROVIDER.keys())
+                curr_prov = step.get("provider")
+                prov_index = prov_list.index(curr_prov) if curr_prov in prov_list else 0
+                
+                selected_prov_ui = col_p.selectbox(
                     "Dostawca AI",
                     prov_list,
-                    index=prov_list.index(step["provider"]) if step.get("provider") in prov_list else 0
+                    index=prov_index,
+                    key=f"prov_{step['id']}"
                 )
+                provider = None if selected_prov_ui == "(Dziedzicz z zadania)" else selected_prov_ui
 
-                flat_models = list(set([m for mods in MODELS_BY_PROVIDER.values() for m in mods]))
-                model = col_m.selectbox(
+                if selected_prov_ui == "(Dziedzicz z zadania)":
+                    flat_models = sorted(list(set([m for mods in MODELS_BY_PROVIDER.values() for m in mods])))
+                else:
+                    flat_models = MODELS_BY_PROVIDER.get(selected_prov_ui, [])
+                
+                mod_list = ["(Dziedzicz z zadania)"] + flat_models
+                curr_model = step.get("model")
+                mod_index = mod_list.index(curr_model) if curr_model in mod_list else 0
+                
+                selected_mod_ui = col_m.selectbox(
                     "Model",
-                    flat_models,
-                    index=flat_models.index(step["model"]) if step.get("model") in flat_models else 0
+                    mod_list,
+                    index=mod_index,
+                    key=f"mod_{step['id']}"
                 )
+                model = None if selected_mod_ui == "(Dziedzicz z zadania)" else selected_mod_ui
 
                 temp = col_t.slider("Temperatura", 0.0, 2.0, float(step["temperature"] or 0.7), 0.1,
                                     help="Wyższa = bardziej kreatywna odpowiedź. Niższa = bardziej przewidywalna.")
