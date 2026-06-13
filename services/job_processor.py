@@ -72,6 +72,9 @@ def _replace_variables(prompt_text, job, previous_outputs, dynamic_vars=None):
         "{{current_step_output}}": str(dynamic_vars.get("current_step_output", "")),
         "{{context}}": str(dynamic_vars.get("context", "")),
         "{{text_humanize}}": str(dynamic_vars.get("text_humanize", "")),
+        "{{breadcrumbs_list}}": str(dynamic_vars.get("breadcrumbs_list", "")),
+        "{{filters_list}}": str(dynamic_vars.get("filters_list", "")),
+        "{{products_content}}": str(dynamic_vars.get("products_content", "")),
         # Wstrzykiwanie final_html do etapów QA
         "{{final_html}}": str(dynamic_vars.get("final_html", ""))
     }
