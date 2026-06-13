@@ -197,41 +197,47 @@ def process_single_job(job_id, progress_callback=None):
         if progress_callback:
             progress_callback("Scrapowanie Kategorii przez Jina AI...", 0, total_steps)
             
-        eng = campaign.get("jina_engine") or "cf-browser-rendering"
-        ret = campaign.get("jina_retain_images") or "none"
-        cat_t = campaign.get("jina_category_target")
-        cat_r = campaign.get("jina_category_remove")
+        # -------------------------------------------------------
+        # Pobieranie danych z Jina AI dla kampanii
+        # -------------------------------------------------------
+        dynamic_vars["breadcrumbs_list"] = ""
+        dynamic_vars["filters_list"] = ""
+        dynamic_vars["category_content"] = ""
+        dynamic_vars["products_content"] = ""
+
         bread_t = campaign.get("jina_breadcrumbs_target")
         filt_t = campaign.get("jina_filters_target")
+        cat_t = campaign.get("jina_category_target")
+        cat_r = campaign.get("jina_category_remove")
+        ret = campaign.get("jina_retain_images", "none")
+        eng = campaign.get("jina_engine", "cf-browser-rendering")
 
         # Okruszki i Filtry
-        if bread_t:
-            if progress_callback: progress_callback("Scrapowanie Okruszków...", 0, total_steps)
         def _save_jina_step(job_id, step_order, step_key, step_name, content):
-            if not content: return
+            status = "completed" if content else "failed"
+            out = content if content else "❌ Brak danych. Jina zwróciła pusty wynik lub błąd."
             client.table("content_job_steps").insert({
                 "job_id": job_id, "step_order": step_order, "step_key": step_key, "step_name": step_name,
-                "status": "completed", "output_text": content, "provider": "jina", "model": "reader"
+                "status": status, "output_text": out, "provider": "jina", "model": "reader"
             }).execute()
 
         if bread_t:
             if progress_callback: progress_callback("Scrapowanie Okruszków...", 0, total_steps)
             b_c = fetch_jina_content(job["url"], jina_api_key, eng, bread_t, None, ret)
-            if b_c: 
-                dynamic_vars["breadcrumbs_list"] = b_c
-                _save_jina_step(job_id, 1, "jina_breadcrumbs", "Scrapowanie Okruszków (JINA)", b_c)
+            if b_c: dynamic_vars["breadcrumbs_list"] = b_c
+            _save_jina_step(job_id, 1, "jina_breadcrumbs", "Scrapowanie Okruszków (JINA)", b_c)
             
         if filt_t:
             if progress_callback: progress_callback("Scrapowanie Filtrów...", 0, total_steps)
             f_c = fetch_jina_content(job["url"], jina_api_key, eng, filt_t, None, ret)
-            if f_c: 
-                dynamic_vars["filters_list"] = f_c
-                _save_jina_step(job_id, 2, "jina_filters", "Scrapowanie Filtrów (JINA)", f_c)
+            if f_c: dynamic_vars["filters_list"] = f_c
+            _save_jina_step(job_id, 2, "jina_filters", "Scrapowanie Filtrów (JINA)", f_c)
             
         cat_content = fetch_jina_content(job["url"], jina_api_key, eng, cat_t, cat_r, ret)
+        _save_jina_step(job_id, 3, "jina_category", "Scrapowanie Kategorii (JINA)", cat_content)
+        
         if cat_content:
             dynamic_vars["category_content"] = cat_content
-            _save_jina_step(job_id, 3, "jina_category", "Scrapowanie Kategorii (JINA)", cat_content)
             
             if progress_callback:
                 progress_callback("Jina AI: Szukanie produktów (AI)...", 0, total_steps)
@@ -256,7 +262,7 @@ def process_single_job(job_id, progress_callback=None):
                 
             if prods_text:
                 dynamic_vars["products_content"] = "\n\n".join(prods_text)
-                _save_jina_step(job_id, 5, "jina_products", "Scrapowanie zawartości wszystkich produktów (JINA)", dynamic_vars["products_content"])
+            _save_jina_step(job_id, 5, "jina_products", "Scrapowanie zawartości wszystkich produktów (JINA)", dynamic_vars["products_content"] if prods_text else None)
     # ========================
 
     for i, step in enumerate(steps):
@@ -316,13 +322,11 @@ def process_single_job(job_id, progress_callback=None):
         # -------------------------------------------------------
         if step_key == "stuffing":
             import json
-            part1_str = ""
-            part2_str = ""
-            for k, v in previous_outputs.items():
-                if "first_part" in k and "outline" in k:
-                    part1_str = v
-                elif "continue_part" in k and "outline" in k:
-                    part2_str = v
+            part1_key = next((s["step_key"] for s in steps if "First part" in s["step_name"]), None)
+            part2_key = next((s["step_key"] for s in steps if "Continue part" in s["step_name"]), None)
+            
+            part1_str = previous_outputs.get(part1_key, "") if part1_key else ""
+            part2_str = previous_outputs.get(part2_key, "") if part2_key else ""
             
             combined_html = ""
             for p_str in [part1_str, part2_str]:
@@ -552,39 +556,23 @@ def process_single_job(job_id, progress_callback=None):
             raw_faq = _strip_markdown_blocks(raw_faq)
         final_fields["faq_html"] = clean_html(raw_faq) if raw_faq else ""
 
-    # Meta title — strip HTML i whitespace
-    if "meta_title" in previous_outputs:
-        raw_title = previous_outputs["meta_title"]
-        final_fields["meta_title"] = _strip_html_tags(_strip_markdown_blocks(str(raw_title or ""))).strip()
-    elif "meta_titles_and_descriptions" in previous_outputs:
-        out_meta = previous_outputs["meta_titles_and_descriptions"]
-        if isinstance(out_meta, str):
-            import json
-            try:
-                out_meta = json.loads(_strip_markdown_blocks(out_meta))
-            except:
-                pass
-        if isinstance(out_meta, dict):
-            final_fields["meta_title"] = str(out_meta.get("title1", ""))
-        else:
-            final_fields["meta_title"] = ""
-
-    # Meta description — strip HTML i whitespace
-    if "meta_description" in previous_outputs:
-        raw_desc = previous_outputs["meta_description"]
-        final_fields["meta_description"] = _strip_html_tags(_strip_markdown_blocks(str(raw_desc or ""))).strip()
-    elif "meta_titles_and_descriptions" in previous_outputs:
-        out_meta = previous_outputs["meta_titles_and_descriptions"]
-        if isinstance(out_meta, str):
-            import json
-            try:
-                out_meta = json.loads(_strip_markdown_blocks(out_meta))
-            except:
-                pass
-        if isinstance(out_meta, dict):
-            final_fields["meta_description"] = str(out_meta.get("metaDescription1", ""))
-        else:
-            final_fields["meta_description"] = ""
+    # Meta title i description
+    meta_key = next((s["step_key"] for s in steps if "Meta titles" in s.get("step_name", "")), "meta_titles_and_descriptions")
+    
+    out_meta = previous_outputs.get(meta_key)
+    if isinstance(out_meta, str):
+        import json
+        try:
+            out_meta = json.loads(_strip_markdown_blocks(out_meta))
+        except:
+            pass
+            
+    if isinstance(out_meta, dict):
+        final_fields["meta_title"] = str(out_meta.get("title1", "")).strip()
+        final_fields["meta_description"] = str(out_meta.get("metaDescription1", "")).strip()
+    else:
+        final_fields["meta_title"] = ""
+        final_fields["meta_description"] = ""
 
     # -------------------------------------------------------
     # QA Regułowe (bez LLM) — pełna analiza

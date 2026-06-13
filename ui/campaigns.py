@@ -140,12 +140,12 @@ def show_create_view():
                             if not j_key:
                                 st.error("Brak klucza JINA_API_KEY w secrets.toml!")
                             else:
-                                out = fetch_jina_content(local_test_url.strip(), j_key, jina_engine, selector_val.strip(), None, jina_retain_images)
+                                out, err = fetch_jina_content(local_test_url.strip(), j_key, jina_engine, selector_val.strip(), None, jina_retain_images)
                                 if out:
                                     st.success("✅ Sukces!")
                                     st.code(out, language="markdown")
                                 else:
-                                    st.error("❌ Pusty wynik. JINA nie znalazła elementu (sprawdź inny selektor) lub zablokowano dostęp.")
+                                    st.error(f"❌ Pusty wynik lub błąd: {err}")
 
         st.markdown("##### Scrapowanie Kategorii")
         c_j1, c_btn1 = st.columns([4, 1])
@@ -289,12 +289,12 @@ def show_edit_view():
                             if not j_key:
                                 st.error("Brak klucza JINA_API_KEY w secrets.toml!")
                             else:
-                                out = fetch_jina_content(local_test_url.strip(), j_key, jina_engine, selector_val.strip(), None, jina_retain_images)
+                                out, err = fetch_jina_content(local_test_url.strip(), j_key, jina_engine, selector_val.strip(), None, jina_retain_images)
                                 if out:
                                     st.success("✅ Sukces!")
                                     st.code(out, language="markdown")
                                 else:
-                                    st.error("❌ Pusty wynik. JINA nie znalazła elementu (sprawdź inny selektor) lub zablokowano dostęp.")
+                                    st.error(f"❌ Pusty wynik lub błąd: {err}")
 
         st.markdown("##### Scrapowanie Kategorii")
         c_j1, c_btn1 = st.columns([4, 1])

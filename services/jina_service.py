@@ -27,10 +27,14 @@ def fetch_jina_content(url, api_key, engine="cf-browser-rendering", target_selec
     try:
         response = requests.get(jina_url, headers=headers, timeout=60)
         response.raise_for_status()
-        return response.text
+        return response.text, None
+    except requests.exceptions.HTTPError as e:
+        err_msg = f"HTTP {e.response.status_code}: {e.response.text}"
+        logger.error(err_msg)
+        return None, err_msg
     except Exception as e:
         logger.error(f"Błąd podczas pobierania treści przez Jina AI z url {url}: {e}")
-        return None
+        return None, str(e)
 
 def extract_links_from_markdown(markdown_text):
     """
