@@ -489,6 +489,8 @@ def process_single_job(job_id, progress_callback=None):
     # Mapowanie final_html z kolejności priorytetów
     if "html_cleanup" in previous_outputs:
         final_fields["final_html"] = previous_outputs["html_cleanup"]
+    elif "formatting" in previous_outputs:
+        final_fields["final_html"] = previous_outputs["formatting"]
     elif "html_formatting" in previous_outputs:
         final_fields["final_html"] = previous_outputs["html_formatting"]
     elif "attractiveness_optimization" in previous_outputs:
@@ -532,11 +534,23 @@ def process_single_job(job_id, progress_callback=None):
     if "meta_title" in previous_outputs:
         raw_title = previous_outputs["meta_title"]
         final_fields["meta_title"] = _strip_html_tags(_strip_markdown_blocks(str(raw_title or ""))).strip()
+    elif "meta_titles_and_descriptions" in previous_outputs:
+        out_meta = previous_outputs["meta_titles_and_descriptions"]
+        if isinstance(out_meta, dict):
+            final_fields["meta_title"] = str(out_meta.get("title1", ""))
+        else:
+            final_fields["meta_title"] = ""
 
     # Meta description — strip HTML i whitespace
     if "meta_description" in previous_outputs:
         raw_desc = previous_outputs["meta_description"]
         final_fields["meta_description"] = _strip_html_tags(_strip_markdown_blocks(str(raw_desc or ""))).strip()
+    elif "meta_titles_and_descriptions" in previous_outputs:
+        out_meta = previous_outputs["meta_titles_and_descriptions"]
+        if isinstance(out_meta, dict):
+            final_fields["meta_description"] = str(out_meta.get("metaDescription1", ""))
+        else:
+            final_fields["meta_description"] = ""
 
     # -------------------------------------------------------
     # QA Regułowe (bez LLM) — pełna analiza
