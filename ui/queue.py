@@ -223,7 +223,7 @@ def _run_single_job_ui(job_id):
                 completed_steps_keys.add(s["step_key"])
                 with logs_container.expander(f"✅ Etap {s['step_order']}: {s['step_name']} | {s.get('provider')}/{s.get('model')}"):
                     out = str(s.get('output_text', ''))
-                    st.caption(f"Status: {s.get('status')} | Zakończono: {s.get('completed_at', '')[:19]}")
+                    st.caption(f"Status: {s.get('status')} | Zakończono: {(s.get('completed_at') or '')[:19]}")
                     st.markdown("**Output Preview:**")
                     st.text(out[:800] + ("..." if len(out) > 800 else ""))
 
@@ -264,7 +264,7 @@ def _run_test_job_ui(job_id, job_data):
                 completed_steps_keys.add(s["step_key"])
                 with logs_container.expander(f"✅ Etap {s['step_order']}: {s['step_name']} | {s.get('provider')}/{s.get('model')}"):
                     out = str(s.get('output_text', ''))
-                    st.caption(f"Status: {s.get('status')} | Zakończono: {s.get('completed_at', '')[:19]}")
+                    st.caption(f"Status: {s.get('status')} | Zakończono: {(s.get('completed_at') or '')[:19]}")
                     st.markdown("**Output Preview:**")
                     st.text(out[:500] + ("..." if len(out) > 500 else ""))
 
@@ -283,7 +283,7 @@ def _run_test_job_ui(job_id, job_data):
             with logs_container.expander(f"{icon} Etap {s['step_order']}: {s['step_name']} | {s.get('provider')}/{s.get('model')}"):
                 out = str(s.get('output_text', ''))
                 err = str(s.get('error_message', ''))
-                st.caption(f"Status: {s.get('status')} | Zakończono: {str(s.get('completed_at', ''))[:19]}")
+                st.caption(f"Status: {s.get('status')} | Zakończono: {(s.get('completed_at') or '')[:19]}")
                 if err:
                     st.error(f"Błąd: {err}")
                 st.markdown("**Output Preview:**")

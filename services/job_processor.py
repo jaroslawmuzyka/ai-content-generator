@@ -213,12 +213,12 @@ def process_single_job(job_id, progress_callback=None):
         eng = campaign.get("jina_engine", "cf-browser-rendering")
 
         # Okruszki i Filtry
-        def _save_jina_step(job_id, step_order, step_key, step_name, content):
+        def _save_jina_step(job_id, step_order, step_key, step_name, content, error_msg=None):
             status = "completed" if content else "failed"
-            out = content if content else "❌ Brak danych. Jina zwróciła pusty wynik lub błąd."
+            out = content if content else f"❌ Brak danych z JINA.\nBłąd: {error_msg}"
             client.table("content_job_steps").insert({
                 "job_id": job_id, "step_order": step_order, "step_key": step_key, "step_name": step_name,
-                "status": status, "output_text": out, "provider": "jina", "model": "reader"
+                "status": status, "output_text": out, "provider": "jina", "model": "reader", "completed_at": "now()"
             }).execute()
 
         if bread_t:
@@ -229,12 +229,12 @@ def process_single_job(job_id, progress_callback=None):
             
         if filt_t:
             if progress_callback: progress_callback("Scrapowanie Filtrów...", 0, total_steps)
-            f_c = fetch_jina_content(job["url"], jina_api_key, eng, filt_t, None, ret)
+            f_c, f_err = fetch_jina_content(job["url"], jina_api_key, eng, filt_t, None, ret)
             if f_c: dynamic_vars["filters_list"] = f_c
-            _save_jina_step(job_id, 2, "jina_filters", "Scrapowanie Filtrów (JINA)", f_c)
+            _save_jina_step(job_id, 2, "jina_filters", "Scrapowanie Filtrów (JINA)", f_c, f_err)
             
-        cat_content = fetch_jina_content(job["url"], jina_api_key, eng, cat_t, cat_r, ret)
-        _save_jina_step(job_id, 3, "jina_category", "Scrapowanie Kategorii (JINA)", cat_content)
+        cat_content, cat_err = fetch_jina_content(job["url"], jina_api_key, eng, cat_t, cat_r, ret)
+        _save_jina_step(job_id, 3, "jina_category", "Scrapowanie Kategorii (JINA)", cat_content, cat_err)
         
         if cat_content:
             dynamic_vars["category_content"] = cat_content
@@ -252,17 +252,21 @@ def process_single_job(job_id, progress_callback=None):
                 _save_jina_step(job_id, 4, "jina_extract_links", "Wyciąganie linków produktów z Kategorii (AI)", "\n".join(links))
             
             prods_text = []
+            prods_err = []
             for idx, link in enumerate(links):
                 if progress_callback:
                     progress_callback(f"Scrapowanie Produktu {idx+1}/{len(links)}...", 0, total_steps)
-                p_text = fetch_jina_content(link, jina_api_key, eng, prod_t, prod_r, ret)
+                p_text, p_err = fetch_jina_content(link, jina_api_key, eng, prod_t, prod_r, ret)
                 if p_text:
                     prods_text.append(f"--- Produkt: {link} ---\n{p_text}")
+                elif p_err:
+                    prods_err.append(f"Produkt {link}: {p_err}")
                 time.sleep(1) # Uniknięcie rate limitu
                 
             if prods_text:
                 dynamic_vars["products_content"] = "\n\n".join(prods_text)
-            _save_jina_step(job_id, 5, "jina_products", "Scrapowanie zawartości wszystkich produktów (JINA)", dynamic_vars["products_content"] if prods_text else None)
+            err_msg = "\n".join(prods_err) if prods_err else None
+            _save_jina_step(job_id, 5, "jina_products", "Scrapowanie zawartości wszystkich produktów (JINA)", dynamic_vars["products_content"] if prods_text else None, err_msg)
     # ========================
 
     for i, step in enumerate(steps):
