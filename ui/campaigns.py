@@ -4,9 +4,23 @@ from services.jina_service import fetch_jina_content
 from utils.constants import CONTENT_TYPES, LOCALES, PROVIDERS, MODELS_BY_PROVIDER
 
 def render():
-    st.title("📂 Kampanie Contentowe")
+    col_t1, col_t2 = st.columns([8, 2])
+    with col_t1:
+        st.title("📂 Kampanie Contentowe")
+    with col_t2:
+        st.write("") 
+        st.button("➕ Nowa kampania", on_click=lambda: set_view_mode("create"), type="primary", use_container_width=True, key="top_new_camp_btn")
+        
     st.write("Kampania to paczka treści lub projekt contentowy, np. wpisy blogowe na dany miesiąc albo opisy produktów dla wybranej kategorii.")
     
+    # Synchronizacja wyboru z bocznego paska
+    last_sidebar_active = st.session_state.get("campaign_last_sidebar_active")
+    current_active = st.session_state.get("active_campaign_id")
+    if current_active and current_active != last_sidebar_active:
+        st.session_state["campaign_view_mode"] = "edit"
+        st.session_state["campaign_edit_id"] = current_active
+        st.session_state["campaign_last_sidebar_active"] = current_active
+        
     # Stan widoku: list, create, edit
     view_mode = st.session_state.get("campaign_view_mode", "list")
     
@@ -23,11 +37,9 @@ def set_view_mode(mode):
     st.rerun()
 
 def show_list_view():
-    col1, col2, col3 = st.columns([2, 2, 6])
+    col1, col2 = st.columns([2, 8])
     with col1:
-        st.button("➕ Nowa kampania", on_click=lambda: set_view_mode("create"), type="primary", use_container_width=True)
-    with col2:
-        status_filter = st.selectbox("Filtruj po statusie", ["active", "archived", "all"], index=0, label_visibility="collapsed")
+        status_filter = st.selectbox("Filtruj po statusie", ["active", "archived", "all"], index=0)
         
     st.divider()
     
@@ -109,44 +121,59 @@ def show_create_view():
         
     with st.expander("Integracja Jina AI (Web Scraping)", expanded=False):
         c_jeng, c_jret = st.columns(2)
-        jina_engine = c_jeng.selectbox("Silnik (Engine)", ["cf-browser-rendering", "playwright", "default"], index=0, help="Silnik używany przez Jina do omijania zabezpieczeń.", key="new_camp_jeng")
-        jina_retain_images = c_jret.selectbox("Retain Images", ["none", "all", "block"], index=0, help="Domyślnie 'none', by zaoszczędzić tokeny.", key="new_camp_jret")
-        
-        st.markdown("##### Scrapowanie Kategorii")
-        c_j1, c_j2 = st.columns(2)
-        jina_category_target = c_j1.text_input("Category Target Selector", placeholder=".brand-list-wrapper", key="new_camp_jct")
-        jina_category_remove = c_j2.text_input("Category Remove Selector", placeholder=".refinement-content, .add-to-cart", key="new_camp_jcr")
-        
-        st.markdown("##### Scrapowanie Produktów")
-        p_j1, p_j2 = st.columns(2)
-        jina_product_target = p_j1.text_input("Product Target Selector", placeholder='#description [itemprop="description"]', key="new_camp_jpt")
-        jina_product_remove = p_j2.text_input("Product Remove Selector", placeholder=".related-products", key="new_camp_jpr")
-        
-        st.markdown("##### Breadcrumbs i Filtry")
-        bf_1, bf_2 = st.columns(2)
-        jina_breadcrumbs_target = bf_1.text_input("Breadcrumbs Target", placeholder=".breadcrumbs", key="new_camp_jbt")
-        jina_filters_target = bf_2.text_input("Filters Target", placeholder=".filters-wrapper", key="new_camp_jft")
+        jina_engine = c_jeng.selectbox("Silnik (Engine)", ["cf-browser-rendering", "playwright", "default"], index=0, help="Silnik używany przez Jina.", key="new_camp_jeng")
+        jina_retain_images = c_jret.selectbox("Retain Images", ["none", "all", "block"], index=0, help="Domyślnie 'none'.", key="new_camp_jret")
         
         st.markdown("---")
-        st.markdown("##### 🧪 Tester Selektorów JINA")
-        st.caption("Podaj URL sklepu, by przetestować jak JINA widzi Twoje selektory zanim uruchomisz potężne scrapowanie.")
-        test_url = st.text_input("URL strony do przetestowania:", placeholder="https://mediamarkt.pl/...", key="new_camp_jtest_url")
-        test_selector = st.text_input("Selektor do sprawdzenia (np. z powyższych):", placeholder=".breadcrumbs", key="new_camp_jtest_sel")
-        if st.button("Sprawdź Selektor"):
-            if not test_url or not test_selector:
-                st.warning("Podaj adres URL i selektor do przetestowania.")
-            else:
-                with st.spinner("Odpytywanie Jina AI..."):
-                    j_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
-                    if not j_key:
-                        st.error("Brak klucza JINA_API_KEY w secrets.toml!")
-                    else:
-                        out = fetch_jina_content(test_url.strip(), j_key, jina_engine, test_selector.strip(), None, jina_retain_images)
-                        if out:
-                            st.success("✅ Udało się pobrać dane!")
-                            st.code(out, language="markdown")
+        test_url = st.text_input("🔗 Przykładowy URL do testów (Kategoria lub Produkt):", placeholder="https://sklep.pl/kategoria...", key="new_camp_testurl")
+        
+        def render_jina_test_btn_create(label, selector_val, key_suffix):
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button(f"🧪 Testuj", key=f"testbtn_cr_{key_suffix}", use_container_width=True):
+                if not test_url or not selector_val:
+                    st.warning("Podaj Przykładowy URL na górze sekcji oraz wpisz selektor w polu.")
+                else:
+                    with st.spinner(f"Odpytywanie Jina AI ({label})..."):
+                        j_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
+                        if not j_key:
+                            st.error("Brak klucza JINA_API_KEY w secrets.toml!")
                         else:
-                            st.error("❌ Pusty wynik lub błąd. JINA nie znalazła tego elementu na stronie lub zablokowano dostęp.")
+                            out = fetch_jina_content(test_url.strip(), j_key, jina_engine, selector_val.strip(), None, jina_retain_images)
+                            if out:
+                                st.success("✅ Udało się pobrać dane!")
+                                st.code(out, language="markdown")
+                            else:
+                                st.error("❌ Pusty wynik. JINA nie znalazła elementu na stronie lub zablokowano dostęp.")
+
+        st.markdown("##### Scrapowanie Kategorii")
+        c_j1, c_btn1 = st.columns([4, 1])
+        with c_j1:
+            jina_category_target = st.text_input("Category Target Selector", placeholder=".brand-list-wrapper", key="new_camp_jct")
+        with c_btn1:
+            render_jina_test_btn_create("Category", jina_category_target, "ct")
+        jina_category_remove = st.text_input("Category Remove Selector", placeholder=".refinement-content, .add-to-cart", key="new_camp_jcr")
+        
+        st.markdown("##### Scrapowanie Produktów")
+        p_j1, p_btn1 = st.columns([4, 1])
+        with p_j1:
+            jina_product_target = st.text_input("Product Target Selector", placeholder='#description [itemprop="description"]', key="new_camp_jpt")
+        with p_btn1:
+            render_jina_test_btn_create("Product", jina_product_target, "pt")
+        jina_product_remove = st.text_input("Product Remove Selector", placeholder=".related-products", key="new_camp_jpr")
+        
+        st.markdown("##### Okruszki (Breadcrumbs)")
+        bf_1, btn_bf1 = st.columns([4, 1])
+        with bf_1:
+            jina_breadcrumbs_target = st.text_input("Breadcrumbs Target", placeholder=".breadcrumbs", key="new_camp_jbt")
+        with btn_bf1:
+            render_jina_test_btn_create("Breadcrumbs", jina_breadcrumbs_target, "bt")
+
+        st.markdown("##### Filtry (Filters)")
+        bf_2, btn_bf2 = st.columns([4, 1])
+        with bf_2:
+            jina_filters_target = st.text_input("Filters Target", placeholder=".filters-wrapper", key="new_camp_jft")
+        with btn_bf2:
+            render_jina_test_btn_create("Filters", jina_filters_target, "ft")
     
     st.write("") # Odstęp
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 4])
@@ -244,41 +271,56 @@ def show_edit_view():
         jr_idx = j_rets.index(curr_ret) if curr_ret in j_rets else 0
         jina_retain_images = c_jret.selectbox("Retain Images", j_rets, index=jr_idx, help="Domyślnie 'none'.", key="edit_camp_jret")
         
+        st.markdown("---")
+        test_url = st.text_input("🔗 Przykładowy URL do testów (Kategoria lub Produkt):", placeholder="https://sklep.pl/kategoria...", key="edit_camp_testurl")
+        
+        def render_jina_test_btn_edit(label, selector_val, key_suffix):
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button(f"🧪 Testuj", key=f"testbtn_ed_{key_suffix}", use_container_width=True):
+                if not test_url or not selector_val:
+                    st.warning("Podaj Przykładowy URL na górze sekcji oraz wpisz selektor w polu.")
+                else:
+                    with st.spinner(f"Odpytywanie Jina AI ({label})..."):
+                        j_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
+                        if not j_key:
+                            st.error("Brak klucza JINA_API_KEY w secrets.toml!")
+                        else:
+                            out = fetch_jina_content(test_url.strip(), j_key, jina_engine, selector_val.strip(), None, jina_retain_images)
+                            if out:
+                                st.success("✅ Udało się pobrać dane!")
+                                st.code(out, language="markdown")
+                            else:
+                                st.error("❌ Pusty wynik. JINA nie znalazła elementu na stronie lub zablokowano dostęp.")
+
         st.markdown("##### Scrapowanie Kategorii")
-        c_j1, c_j2 = st.columns(2)
-        jina_category_target = c_j1.text_input("Category Target Selector", value=camp.get("jina_category_target") or "", placeholder=".brand-list-wrapper", key="edit_camp_jct")
-        jina_category_remove = c_j2.text_input("Category Remove Selector", value=camp.get("jina_category_remove") or "", placeholder=".refinement-content, .add-to-cart", key="edit_camp_jcr")
+        c_j1, c_btn1 = st.columns([4, 1])
+        with c_j1:
+            jina_category_target = st.text_input("Category Target Selector", value=camp.get("jina_category_target") or "", placeholder=".brand-list-wrapper", key="edit_camp_jct")
+        with c_btn1:
+            render_jina_test_btn_edit("Category", jina_category_target, "ct")
+        jina_category_remove = st.text_input("Category Remove Selector", value=camp.get("jina_category_remove") or "", placeholder=".refinement-content, .add-to-cart", key="edit_camp_jcr")
         
         st.markdown("##### Scrapowanie Produktów")
-        p_j1, p_j2 = st.columns(2)
-        jina_product_target = p_j1.text_input("Product Target Selector", value=camp.get("jina_product_target") or "", placeholder='#description [itemprop="description"]', key="edit_camp_jpt")
-        jina_product_remove = p_j2.text_input("Product Remove Selector", value=camp.get("jina_product_remove") or "", placeholder=".related-products", key="edit_camp_jpr")
+        p_j1, p_btn1 = st.columns([4, 1])
+        with p_j1:
+            jina_product_target = st.text_input("Product Target Selector", value=camp.get("jina_product_target") or "", placeholder='#description [itemprop="description"]', key="edit_camp_jpt")
+        with p_btn1:
+            render_jina_test_btn_edit("Product", jina_product_target, "pt")
+        jina_product_remove = st.text_input("Product Remove Selector", value=camp.get("jina_product_remove") or "", placeholder=".related-products", key="edit_camp_jpr")
         
-        st.markdown("##### Breadcrumbs i Filtry")
-        bf_1, bf_2 = st.columns(2)
-        jina_breadcrumbs_target = bf_1.text_input("Breadcrumbs Target", value=camp.get("jina_breadcrumbs_target") or "", placeholder=".breadcrumbs", key="edit_camp_jbt")
-        jina_filters_target = bf_2.text_input("Filters Target", value=camp.get("jina_filters_target") or "", placeholder=".filters-wrapper", key="edit_camp_jft")
-        
-        st.markdown("---")
-        st.markdown("##### 🧪 Tester Selektorów JINA")
-        st.caption("Podaj URL sklepu, by przetestować jak JINA widzi Twoje selektory zanim uruchomisz potężne scrapowanie.")
-        test_url = st.text_input("URL strony do przetestowania:", placeholder="https://mediamarkt.pl/...", key="edit_camp_jtest_url")
-        test_selector = st.text_input("Selektor do sprawdzenia (np. z powyższych):", placeholder=".breadcrumbs", key="edit_camp_jtest_sel")
-        if st.button("Sprawdź Selektor"):
-            if not test_url or not test_selector:
-                st.warning("Podaj adres URL i selektor do przetestowania.")
-            else:
-                with st.spinner("Odpytywanie Jina AI..."):
-                    j_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
-                    if not j_key:
-                        st.error("Brak klucza JINA_API_KEY w secrets.toml!")
-                    else:
-                        out = fetch_jina_content(test_url.strip(), j_key, jina_engine, test_selector.strip(), None, jina_retain_images)
-                        if out:
-                            st.success("✅ Udało się pobrać dane!")
-                            st.code(out, language="markdown")
-                        else:
-                            st.error("❌ Pusty wynik lub błąd. JINA nie znalazła tego elementu na stronie lub zablokowano dostęp.")
+        st.markdown("##### Okruszki (Breadcrumbs)")
+        bf_1, btn_bf1 = st.columns([4, 1])
+        with bf_1:
+            jina_breadcrumbs_target = st.text_input("Breadcrumbs Target Selector", value=camp.get("jina_breadcrumbs_target") or "", placeholder=".breadcrumbs", key="edit_camp_jbt")
+        with btn_bf1:
+            render_jina_test_btn_edit("Breadcrumbs", jina_breadcrumbs_target, "bt")
+
+        st.markdown("##### Filtry (Filters)")
+        bf_2, btn_bf2 = st.columns([4, 1])
+        with bf_2:
+            jina_filters_target = st.text_input("Filters Target Selector", value=camp.get("jina_filters_target") or "", placeholder=".filters-wrapper", key="edit_camp_jft")
+        with btn_bf2:
+            render_jina_test_btn_edit("Filters", jina_filters_target, "ft")
     
     st.write("") # Odstęp
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 4])
