@@ -71,6 +71,7 @@ def _replace_variables(prompt_text, job, previous_outputs, dynamic_vars=None):
         "{{already_written_part}}": already_written_raw,
         "{{current_step_output}}": str(dynamic_vars.get("current_step_output", "")),
         "{{context}}": str(dynamic_vars.get("context", "")),
+        "{{text_humanize}}": str(dynamic_vars.get("text_humanize", "")),
         # Wstrzykiwanie final_html do etapów QA
         "{{final_html}}": str(dynamic_vars.get("final_html", ""))
     }
@@ -253,34 +254,19 @@ def process_single_job(job_id, progress_callback=None):
         if cat_content:
             dynamic_vars["category_content"] = cat_content
             
-            if progress_callback:
-                progress_callback("Jina AI: Szukanie produktów (AI)...", 0, total_steps)
-                
-            prod_t = campaign.get("jina_product_target")
-            prod_r = campaign.get("jina_product_remove")
-            
             provider = job.get("provider") or "openai"
             model = job.get("model") or "gpt-4o-mini"
-            links = extract_product_links_with_ai(cat_content, provider, model, max_links=50)
-            if links:
-                _save_jina_step(job_id, 4, "jina_extract_links", "Wyciąganie linków produktów z Kategorii (AI)", "\n".join(links))
+            from services.jina_service import extract_product_names_with_ai
             
-            prods_text = []
-            prods_err = []
-            for idx, link in enumerate(links):
-                if progress_callback:
-                    progress_callback(f"Scrapowanie Produktu {idx+1}/{len(links)}...", 0, total_steps)
-                p_text, p_err = fetch_jina_content(link, jina_api_key, eng, prod_t, prod_r, ret)
-                if p_text:
-                    prods_text.append(f"--- Produkt: {link} ---\n{p_text}")
-                elif p_err:
-                    prods_err.append(f"Produkt {link}: {p_err}")
-                time.sleep(1) # Uniknięcie rate limitu
+            if progress_callback:
+                progress_callback("Jina AI: Wyciąganie nazw produktów (AI)...", 0, total_steps)
                 
-            if prods_text:
-                dynamic_vars["products_content"] = "\n\n".join(prods_text)
-            err_msg = "\n".join(prods_err) if prods_err else None
-            _save_jina_step(job_id, 5, "jina_products", "Scrapowanie zawartości wszystkich produktów (JINA)", dynamic_vars["products_content"] if prods_text else None, err_msg)
+            names = extract_product_names_with_ai(cat_content, provider, model, max_items=100)
+            if names:
+                dynamic_vars["products_content"] = "\n".join(names)
+                _save_jina_step(job_id, 4, "jina_extract_names", "Wyciąganie nazw produktów z Kategorii (AI)", dynamic_vars["products_content"])
+            else:
+                _save_jina_step(job_id, 4, "jina_extract_names", "Wyciąganie nazw produktów z Kategorii (AI)", None, "Brak produktów")
     # ========================
 
     for i, step in enumerate(steps):
@@ -368,6 +354,15 @@ def process_single_job(job_id, progress_callback=None):
                         pass
             
             dynamic_vars["text_humanize"] = combined_html
+            
+            client.table("content_job_steps").insert({
+                "job_id": job_id, "step_order": step["step_order"], "step_key": step_key,
+                "step_name": step["step_name"], "status": "completed",
+                "output_text": "Połączono sekcje pomyślnie. Tekst gotowy do Humanizacji.",
+                "provider": "system", "model": "local", "completed_at": "now()"
+            }).execute()
+            previous_outputs[step_key] = "Połączono sekcje pomyślnie."
+            continue
 
         # -------------------------------------------------------
         # PĘTLA dla seo_section_writer — pisze po jednym H2

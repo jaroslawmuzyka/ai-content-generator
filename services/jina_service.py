@@ -101,11 +101,61 @@ Przykład oczekiwanej odpowiedzi:
         if raw_text.endswith("```"):
             raw_text = raw_text[:-3]
             
-        links = json.loads(raw_text.strip())
-        if isinstance(links, list):
-            # Limit do 50 jak użytkownik chciał (zapas)
-            return links[:max_links]
+        import json
+        extracted = json.loads(raw_text.strip())
+        if isinstance(extracted, list):
+            return [str(u) for u in extracted][:max_links]
     except Exception as e:
-        logger.error(f"Nie udało się zdekodować JSON z linkami od AI: {e}\nOdpowiedź AI: {ai_res.get('text')}")
+        logger.error(f"Błąd parsowania JSON z linkami: {e}")
+        
+    return []
+
+def extract_product_names_with_ai(markdown_text, provider, model, max_items=100):
+    """
+    Wysyła pobrany markdown do modelu AI, by ten wyselekcjonował
+    nazwy produktów widoczne na stronie kategorii.
+    Zwraca listę nazw produktów.
+    """
+    system_prompt = f"""
+Jesteś asystentem ekstrakcji danych z formatu Markdown.
+Twoim zadaniem jest znalezienie i wyciągnięcie pełnych NAZW produktów sklepowych z podanego tekstu ze strony kategorii.
+Zignoruj nawigację, filtry, stopki. Szukaj wyłącznie konkretnych nazw produktów (np. "Krem nawilżający 50ml", "Perfumy X").
+Maksymalna liczba produktów do pobrania to: {max_items}.
+
+Zwróć wynik TYLKO i WYŁĄCZNIE jako czysty, poprawny JSON (tablicę stringów z nazwami). Bez markdownowych bloków ```json.
+Przykład oczekiwanej odpowiedzi:
+[
+  "Nazwa produktu 1",
+  "Nazwa produktu 2"
+]
+    """
+    short_markdown = markdown_text[:80000] 
+    
+    from services.ai_service import generate_ai_response
+    ai_res = generate_ai_response(
+        provider=provider,
+        model=model,
+        system_prompt=system_prompt.strip(),
+        user_prompt=f"Oto markdown ze strony kategorii:\n\n{short_markdown}",
+        temperature=0.0,
+        max_tokens=4000
+    )
+    
+    if not ai_res["success"]:
+        return []
+        
+    try:
+        raw_text = ai_res["text"].strip()
+        if raw_text.startswith("```json"):
+            raw_text = raw_text.replace("```json", "", 1)
+        if raw_text.endswith("```"):
+            raw_text = raw_text[:-3]
+            
+        import json
+        extracted = json.loads(raw_text.strip())
+        if isinstance(extracted, list):
+            return [str(u) for u in extracted][:max_items]
+    except Exception as e:
+        pass
         
     return []
