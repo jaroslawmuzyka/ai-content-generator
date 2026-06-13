@@ -15,7 +15,8 @@ def fetch_jina_content(url, api_key, engine="cf-browser-rendering", target_selec
     headers = {
         "Authorization": f"Bearer {api_key}",
         "X-Engine": engine,
-        "X-Retain-Images": retain_images
+        "X-Retain-Images": retain_images,
+        "X-No-Cache": "true"
     }
     
     if target_selector and target_selector.strip():

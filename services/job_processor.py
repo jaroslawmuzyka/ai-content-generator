@@ -212,29 +212,43 @@ def process_single_job(job_id, progress_callback=None):
         ret = campaign.get("jina_retain_images", "none")
         eng = campaign.get("jina_engine", "cf-browser-rendering")
 
-        # Okruszki i Filtry
         def _save_jina_step(job_id, step_order, step_key, step_name, content, error_msg=None):
             status = "completed" if content else "failed"
             out = content if content else f"❌ Brak danych z JINA.\nBłąd: {error_msg}"
-            client.table("content_job_steps").insert({
+            payload = {
                 "job_id": job_id, "step_order": step_order, "step_key": step_key, "step_name": step_name,
                 "status": status, "output_text": out, "provider": "jina", "model": "reader", "completed_at": "now()"
-            }).execute()
+            }
+            if step_key in existing_steps:
+                client.table("content_job_steps").update(payload).eq("id", existing_steps[step_key]["id"]).execute()
+            else:
+                client.table("content_job_steps").insert(payload).execute()
 
         if bread_t:
             if progress_callback: progress_callback("Scrapowanie Okruszków...", 0, total_steps)
-            b_c = fetch_jina_content(job["url"], jina_api_key, eng, bread_t, None, ret)
+            b_c, b_err = fetch_jina_content(job["url"], jina_api_key, eng, bread_t, None, ret)
             if b_c: dynamic_vars["breadcrumbs_list"] = b_c
-            _save_jina_step(job_id, 1, "jina_breadcrumbs", "Scrapowanie Okruszków (JINA)", b_c)
+            _save_jina_step(job_id, 1, "jina_breadcrumbs", "Scrapowanie Okruszków (JINA)", b_c, b_err)
+            if b_err:
+                client.table("content_jobs").update({"status": "failed", "error_message": f"Błąd Jina (Okruszki): {b_err}"}).eq("id", job_id).execute()
+                return False, f"Przerwano: Jina AI zwróciła błąd dla Okruszków: {b_err}"
             
         if filt_t:
             if progress_callback: progress_callback("Scrapowanie Filtrów...", 0, total_steps)
+            time.sleep(3)
             f_c, f_err = fetch_jina_content(job["url"], jina_api_key, eng, filt_t, None, ret)
             if f_c: dynamic_vars["filters_list"] = f_c
             _save_jina_step(job_id, 2, "jina_filters", "Scrapowanie Filtrów (JINA)", f_c, f_err)
+            if f_err:
+                client.table("content_jobs").update({"status": "failed", "error_message": f"Błąd Jina (Filtry): {f_err}"}).eq("id", job_id).execute()
+                return False, f"Przerwano: Jina AI zwróciła błąd dla Filtrów: {f_err}"
             
+        time.sleep(3)
         cat_content, cat_err = fetch_jina_content(job["url"], jina_api_key, eng, cat_t, cat_r, ret)
         _save_jina_step(job_id, 3, "jina_category", "Scrapowanie Kategorii (JINA)", cat_content, cat_err)
+        if cat_err:
+            client.table("content_jobs").update({"status": "failed", "error_message": f"Błąd Jina (Kategoria): {cat_err}"}).eq("id", job_id).execute()
+            return False, f"Przerwano: Jina AI zwróciła błąd dla Kategorii: {cat_err}"
         
         if cat_content:
             dynamic_vars["category_content"] = cat_content
