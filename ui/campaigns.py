@@ -125,25 +125,27 @@ def show_create_view():
         jina_retain_images = c_jret.selectbox("Retain Images", ["none", "all", "block"], index=0, help="Domyślnie 'none'.", key="new_camp_jret")
         
         st.markdown("---")
-        test_url = st.text_input("🔗 Przykładowy URL do testów (Kategoria lub Produkt):", placeholder="https://sklep.pl/kategoria...", key="new_camp_testurl")
         
         def render_jina_test_btn_create(label, selector_val, key_suffix):
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button(f"🧪 Testuj", key=f"testbtn_cr_{key_suffix}", use_container_width=True):
-                if not test_url or not selector_val:
-                    st.warning("Podaj Przykładowy URL na górze sekcji oraz wpisz selektor w polu.")
-                else:
-                    with st.spinner(f"Odpytywanie Jina AI ({label})..."):
-                        j_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
-                        if not j_key:
-                            st.error("Brak klucza JINA_API_KEY w secrets.toml!")
-                        else:
-                            out = fetch_jina_content(test_url.strip(), j_key, jina_engine, selector_val.strip(), None, jina_retain_images)
-                            if out:
-                                st.success("✅ Udało się pobrać dane!")
-                                st.code(out, language="markdown")
+            with st.popover(f"🧪 Testuj", use_container_width=True):
+                st.write(f"**Test selektora:** `{label}`")
+                local_test_url = st.text_input("Adres URL do testu:", placeholder="https://sklep.pl/kategoria...", key=f"pop_url_cr_{key_suffix}")
+                if st.button("Uruchom zapytanie", key=f"run_test_cr_{key_suffix}", type="primary"):
+                    if not local_test_url or not selector_val:
+                        st.warning("Podaj adres URL do testu oraz wpisz selektor.")
+                    else:
+                        with st.spinner(f"Odpytywanie Jina AI..."):
+                            j_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
+                            if not j_key:
+                                st.error("Brak klucza JINA_API_KEY w secrets.toml!")
                             else:
-                                st.error("❌ Pusty wynik. JINA nie znalazła elementu na stronie lub zablokowano dostęp.")
+                                out = fetch_jina_content(local_test_url.strip(), j_key, jina_engine, selector_val.strip(), None, jina_retain_images)
+                                if out:
+                                    st.success("✅ Sukces!")
+                                    st.code(out, language="markdown")
+                                else:
+                                    st.error("❌ Pusty wynik. JINA nie znalazła elementu (sprawdź inny selektor) lub zablokowano dostęp.")
 
         st.markdown("##### Scrapowanie Kategorii")
         c_j1, c_btn1 = st.columns([4, 1])
@@ -272,25 +274,27 @@ def show_edit_view():
         jina_retain_images = c_jret.selectbox("Retain Images", j_rets, index=jr_idx, help="Domyślnie 'none'.", key="edit_camp_jret")
         
         st.markdown("---")
-        test_url = st.text_input("🔗 Przykładowy URL do testów (Kategoria lub Produkt):", placeholder="https://sklep.pl/kategoria...", key="edit_camp_testurl")
         
         def render_jina_test_btn_edit(label, selector_val, key_suffix):
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button(f"🧪 Testuj", key=f"testbtn_ed_{key_suffix}", use_container_width=True):
-                if not test_url or not selector_val:
-                    st.warning("Podaj Przykładowy URL na górze sekcji oraz wpisz selektor w polu.")
-                else:
-                    with st.spinner(f"Odpytywanie Jina AI ({label})..."):
-                        j_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
-                        if not j_key:
-                            st.error("Brak klucza JINA_API_KEY w secrets.toml!")
-                        else:
-                            out = fetch_jina_content(test_url.strip(), j_key, jina_engine, selector_val.strip(), None, jina_retain_images)
-                            if out:
-                                st.success("✅ Udało się pobrać dane!")
-                                st.code(out, language="markdown")
+            with st.popover(f"🧪 Testuj", use_container_width=True):
+                st.write(f"**Test selektora:** `{label}`")
+                local_test_url = st.text_input("Adres URL do testu:", placeholder="https://sklep.pl/kategoria...", key=f"pop_url_ed_{key_suffix}")
+                if st.button("Uruchom zapytanie", key=f"run_test_ed_{key_suffix}", type="primary"):
+                    if not local_test_url or not selector_val:
+                        st.warning("Podaj adres URL do testu oraz wpisz selektor.")
+                    else:
+                        with st.spinner(f"Odpytywanie Jina AI..."):
+                            j_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
+                            if not j_key:
+                                st.error("Brak klucza JINA_API_KEY w secrets.toml!")
                             else:
-                                st.error("❌ Pusty wynik. JINA nie znalazła elementu na stronie lub zablokowano dostęp.")
+                                out = fetch_jina_content(local_test_url.strip(), j_key, jina_engine, selector_val.strip(), None, jina_retain_images)
+                                if out:
+                                    st.success("✅ Sukces!")
+                                    st.code(out, language="markdown")
+                                else:
+                                    st.error("❌ Pusty wynik. JINA nie znalazła elementu (sprawdź inny selektor) lub zablokowano dostęp.")
 
         st.markdown("##### Scrapowanie Kategorii")
         c_j1, c_btn1 = st.columns([4, 1])
