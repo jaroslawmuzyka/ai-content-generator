@@ -105,6 +105,24 @@ def show_create_view():
         c3, c4 = st.columns(2)
         provider = c3.selectbox("Domyślny dostawca AI", PROVIDERS, key="new_camp_prov")
         model = c4.selectbox("Domyślny model AI", MODELS_BY_PROVIDER.get(provider, []), key="new_camp_mod")
+        
+    with st.expander("Integracja Jina AI (Web Scraping)", expanded=False):
+        jina_engine = st.selectbox("Silnik renderowania (Engine)", ["cf-browser-rendering", "playwright", "default"], index=0, help="Silnik używany przez Jina do omijania zabezpieczeń.", key="new_camp_jeng")
+        
+        st.markdown("##### Scrapowanie Kategorii")
+        c_j1, c_j2 = st.columns(2)
+        jina_category_target = c_j1.text_input("Category Target Selector", placeholder=".brand-list-wrapper", key="new_camp_jct")
+        jina_category_remove = c_j2.text_input("Category Remove Selector", placeholder=".refinement-content, .add-to-cart", key="new_camp_jcr")
+        
+        st.markdown("##### Scrapowanie Produktów")
+        p_j1, p_j2 = st.columns(2)
+        jina_product_target = p_j1.text_input("Product Target Selector", placeholder='#description [itemprop="description"]', key="new_camp_jpt")
+        jina_product_remove = p_j2.text_input("Product Remove Selector", placeholder=".related-products", key="new_camp_jpr")
+        
+        st.markdown("##### Breadcrumbs i Filtry")
+        bf_1, bf_2 = st.columns(2)
+        jina_breadcrumbs_target = bf_1.text_input("Breadcrumbs Target", placeholder=".breadcrumbs", key="new_camp_jbt")
+        jina_filters_target = bf_2.text_input("Filters Target", placeholder=".filters-wrapper", key="new_camp_jft")
     
     st.write("") # Odstęp
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 4])
@@ -122,6 +140,13 @@ def show_create_view():
                     "default_locale": locale,
                     "default_provider": provider,
                     "default_model": model,
+                    "jina_engine": jina_engine,
+                    "jina_category_target": jina_category_target.strip() if jina_category_target else None,
+                    "jina_category_remove": jina_category_remove.strip() if jina_category_remove else None,
+                    "jina_product_target": jina_product_target.strip() if jina_product_target else None,
+                    "jina_product_remove": jina_product_remove.strip() if jina_product_remove else None,
+                    "jina_breadcrumbs_target": jina_breadcrumbs_target.strip() if jina_breadcrumbs_target else None,
+                    "jina_filters_target": jina_filters_target.strip() if jina_filters_target else None,
                     "status": "active",
                     "created_by": st.session_state.get("current_operator", "unknown")
                 }
@@ -182,6 +207,27 @@ def show_edit_view():
     mod_idx = models.index(camp.get("default_model")) if camp.get("default_model") in models else 0
     model = c4.selectbox("Domyślny model AI", models, index=mod_idx, key="edit_camp_mod")
     
+    with st.expander("Integracja Jina AI (Web Scraping)", expanded=False):
+        j_engs = ["cf-browser-rendering", "playwright", "default"]
+        curr_eng = camp.get("jina_engine") or "cf-browser-rendering"
+        j_idx = j_engs.index(curr_eng) if curr_eng in j_engs else 0
+        jina_engine = st.selectbox("Silnik renderowania (Engine)", j_engs, index=j_idx, help="Silnik używany przez Jina.", key="edit_camp_jeng")
+        
+        st.markdown("##### Scrapowanie Kategorii")
+        c_j1, c_j2 = st.columns(2)
+        jina_category_target = c_j1.text_input("Category Target Selector", value=camp.get("jina_category_target") or "", placeholder=".brand-list-wrapper", key="edit_camp_jct")
+        jina_category_remove = c_j2.text_input("Category Remove Selector", value=camp.get("jina_category_remove") or "", placeholder=".refinement-content, .add-to-cart", key="edit_camp_jcr")
+        
+        st.markdown("##### Scrapowanie Produktów")
+        p_j1, p_j2 = st.columns(2)
+        jina_product_target = p_j1.text_input("Product Target Selector", value=camp.get("jina_product_target") or "", placeholder='#description [itemprop="description"]', key="edit_camp_jpt")
+        jina_product_remove = p_j2.text_input("Product Remove Selector", value=camp.get("jina_product_remove") or "", placeholder=".related-products", key="edit_camp_jpr")
+        
+        st.markdown("##### Breadcrumbs i Filtry")
+        bf_1, bf_2 = st.columns(2)
+        jina_breadcrumbs_target = bf_1.text_input("Breadcrumbs Target", value=camp.get("jina_breadcrumbs_target") or "", placeholder=".breadcrumbs", key="edit_camp_jbt")
+        jina_filters_target = bf_2.text_input("Filters Target", value=camp.get("jina_filters_target") or "", placeholder=".filters-wrapper", key="edit_camp_jft")
+    
     st.write("") # Odstęp
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 4])
     
@@ -198,9 +244,15 @@ def show_edit_view():
                     "default_locale": locale,
                     "default_provider": provider,
                     "default_model": model,
+                    "jina_engine": jina_engine,
+                    "jina_category_target": jina_category_target.strip() if jina_category_target else None,
+                    "jina_category_remove": jina_category_remove.strip() if jina_category_remove else None,
+                    "jina_product_target": jina_product_target.strip() if jina_product_target else None,
+                    "jina_product_remove": jina_product_remove.strip() if jina_product_remove else None,
+                    "jina_breadcrumbs_target": jina_breadcrumbs_target.strip() if jina_breadcrumbs_target else None,
+                    "jina_filters_target": jina_filters_target.strip() if jina_filters_target else None,
                 }
-                updated = update_campaign(camp_id, data)
-                if updated:
+                if update_campaign(camp_id, data):
                     st.success("Zapisano zmiany!")
                     set_view_mode("list")
                     

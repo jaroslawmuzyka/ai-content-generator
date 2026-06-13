@@ -12,7 +12,8 @@ CONTENT_TYPES = [
     "ecommerce_category",
     "ecommerce_product",
     "blog_post",
-    "landing_page"
+    "landing_page",
+    "ecommerce_category_mm"
 ]
 
 LOCALES = {

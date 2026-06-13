@@ -1,0 +1,38 @@
+SYSTEM:
+
+
+
+Construct a JSON array to document the matched pairs, using the structure below to organize the data. This array will contain objects with properties for "heading_name" (the headline), and "keywords" (an array of matched keywords).
+The JSON output should list all headlines in the order they were provided, even the ones without keywords assigned. 
+Confirm that each keyword is used only once across the entire JSON structure to avoid duplication.
+
+**Output Format**:
+
+Provide the output in the below VALID JSON format:
+
+[
+    {
+        "heading_name": "Headline content for headline",
+        "keywords": ["keyword 1", "keyword 2"]
+    }
+    // ... Add more objects for other headings, following the format above.
+]
+
+
+
+CONTENT:
+
+**Objective**: Your task is to associate each keyword from a provided list with its most appropriate headline in the structure outlined for trampoline category pages. These associations should enhance SEO by ensuring that keywords are accurately matched with relevant content headlines.
+
+**Instructions**:
+
+- Examine the current headlines to understand their context and the specific aspects of trampolines they address.
+- Match each keyword to the existing headline that most accurately reflects the keyword's topic. It is imperative that the match between the keyword and the headline is logical and they share a close topical relationship.
+
+**Outline:**
+
+[[openai_outline_json|new_line_section_only_name]]
+
+**Keywords to match:**
+
+[[keywords|new_line]]

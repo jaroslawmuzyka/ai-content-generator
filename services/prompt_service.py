@@ -4,6 +4,7 @@ from db.supabase_client import get_supabase_client
 from services.prompt_templates_p1 import PROMPTS_P1
 from services.prompt_templates_p2 import PROMPTS_P2
 from services.prompt_templates_p3 import PROMPTS_P3
+from services.prompt_templates_mm import PROMPTS_MM
 
 def seed_default_prompts():
     client = get_supabase_client()
@@ -57,7 +58,34 @@ def seed_default_prompts():
                 }
                 client.table("default_prompt_steps").insert(step_data).execute()
 
-        return True, f"✅ Zainicjowano {len(content_types)} zestawy × {len(steps_template)} kroków. Stare duplikaty zostały usunięte."
+        # ── Krok 3: Wstaw zestaw MediaMarkt CM ──────────────────────────────────────────────────
+        mm_set_data = {
+            "name": "Zestaw bazowy: Kategorie MediaMarkt CM",
+            "content_type": "ecommerce_category_mm",
+            "language": "pl",
+            "description": "Dedykowany potok z podwójnym scrapowaniem i selektywnymi krokami MM."
+        }
+        res_mm_set = client.table("default_prompt_sets").insert(mm_set_data).execute()
+        mm_set_id = res_mm_set.data[0]["id"]
+
+        for s in PROMPTS_MM:
+            step_data = {
+                "default_prompt_set_id": mm_set_id,
+                "step_order": s["order"],
+                "step_key": s["key"],
+                "step_name": s["name"],
+                "system_prompt": s["sys"],
+                "user_prompt": s["user"],
+                "default_provider": None,
+                "default_model": None,
+                "temperature": 0.7,
+                "max_tokens": s["max_tokens"],
+                "output_type": s["output_type"],
+                "stage_group": s.get("stage_group", "seo")
+            }
+            client.table("default_prompt_steps").insert(step_data).execute()
+
+        return True, f"✅ Zainicjowano {len(content_types)} zestawy standardowe + 1 zestaw MM. Stare duplikaty zostały usunięte."
     except Exception as e:
         return False, f"Błąd podczas instalacji promptów: {str(e)}"
 

@@ -1,0 +1,20 @@
+##Task:
+
+Craft a [[language_name]]  keyword phrase that captures the essence of the final category in the breadcrumbs without being too narrow; it should have high search volume and indicate a readiness to purchase among consumers interested in the products listed..
+
+Breadcrumbs:
+
+"[[site_breadcrumbs|bullet_breadcrumbs_list]]".
+
+Product offer for category: 
+
+"[[site_products_or_subcategories|new_line]]"
+
+It is essential that the keyword reflects a strong purchase intent and is broadly applicable to the entire range of listed products.
+
+##Audience:
+
+The keyword must be tailored for [[language_name]] consumers, be a common search term on online marketplaces, and be optimized for search engine visibility.
+
+##Output Format:
+Provide the keyword phrase only, with no additional information or context.

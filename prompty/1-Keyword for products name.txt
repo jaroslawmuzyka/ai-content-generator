@@ -1,0 +1,21 @@
+##Task:
+
+Identify a high-traffic [[language_name]] keyword phrase.
+
+##Context:
+
+The keyword should correspond to the e-commerce category '[[site_keyword]]'.
+
+##And products that are listed on this category:
+
+[[site_products_or_subcategories|new_line]]
+
+It is essential that the keyword reflects a strong purchase intent and is broadly applicable to the entire range of listed products without referencing any specific brand names or cities.
+
+##Audience:
+
+The keyword must be tailored for [[language_name]] consumers, be a common search term on online marketplaces, and be optimized for search engine visibility.
+
+##Output Format:
+
+Provide the keyword phrase only, with no additional information or context.

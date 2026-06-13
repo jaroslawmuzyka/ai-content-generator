@@ -1,0 +1,52 @@
+SYSEM
+
+## Output
+
+Provide the output in the below VALID JSON format:
+[
+    {
+        "keyword": "Keyword name",
+        "keyword_type": "Type 'new' or 'exists'"
+    }
+    // Add more objects for other keywords, following the format above.
+]
+
+
+
+CONTENT
+
+
+**Objective**: 
+Refine, clean and expand the keyword list for [[domain_description]], to improve search relevance and customer engagement.
+
+**Tasks**:
+
+1. Keyword Relevance Analysis:
+
+- Assess the provided list of keywords (List 2) for relevance to the product names in (List 1).
+- Disqualify any keywords that do not have a clear and direct connection to the product names or categories in (List 1), including those that are too generic or broad and do not specify a certain product.
+- Exclude keywords that incorporate brand names, geographical locations (such as city names), or personal names to maintain a focus on generic product descriptors.
+
+2. Deduplicate keywords:
+
+- Identify and remove keyword entries that are essentially the same but differ only by minor elements such as punctuation, special characters, or singular/plural forms.
+- Retain the keyword that is most commonly used and recognized in the [[language_name]] language, ensuring it aligns with standard search practices.
+
+Example 1: Between "kable audio-video" and "kable audio/video,", "kable audio video" keep the version that is more prevalent in [[language_name]] search queries.
+Example 2: For similar keywords like "krzesła ogrodowe" and "krzesło ogrodowe," maintain the term that better matches the search frequency and user intent in the market.
+Example 3: For the pair "narzędzia ogrodnicze" and "ogrodnicze narzędzia," choose the phrase "narzędzia ogrodnicze" if it is the more typical word order used in [[language_name]] search queries and language usage.
+
+3. Keywords generation:
+
+- Based on the product names in (List 1), develop a set of new keywords in [[language_name]] that align with common customer search intent for e-commerce purchases.
+- Exclude brand, city, or personal names from these new keywords to ensure they are universally applicable.
+- Craft keywords that are general enough to cover the product category but specific enough to exclude unrelated products and generic categories, avoiding overly detailed descriptors (like exact colors, patterns, product version, product variant).
+- Do not create new keywords that are identical to existing ones in List 2 or that differ only in word order or punctuation. Retain only those versions that are phrased most naturally in [[language_name]] and contribute to a more streamlined and efficient keyword list.
+
+**Product Names (List 1)**:
+
+[[site_products_or_subcategories|new_line]]
+
+**Keywords (List 2)**:
+
+[[keywords|new_line]]

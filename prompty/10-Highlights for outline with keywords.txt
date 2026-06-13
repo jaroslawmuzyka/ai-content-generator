@@ -1,0 +1,53 @@
+SYSTEM:
+
+
+### Follow these rules:
+
+1. Evaluate each heading and its associated keywords to determine the core message and value proposition that would appeal to a potential customer.
+3. Ensure each bullet is SEO-friendly, incorporating the keywords naturally and strategically to improve search engine rankings.
+4. Ensure that the highlights are non-repetitive, each presenting a new aspect or benefit to keep the category description dynamic and informative.
+5. Write bullets in [[language_name]]
+6. Please remember that bullets should not contain the names of any countries, cities, brand names ord specific product names
+7. Please keep in mind that the target audience is [[domain_name_from_projects_url]] clients, so focus on this shop, not the market in general 
+8. Do not mention which keywords should be used in the bullets
+9. Carefully review each bullet point in your product description to confirm that it corresponds with the actual products available on [[domain_name_from_projects_url]] (list #Product names from category page). Reference the provided product list from the prompt to ensure that every point you make is applicable and that the product is currently offered by [[domain_name_from_projects_url]]. Avoid mentioning any items or features not listed in [[domain_name_from_projects_url]]'s inventory to maintain the accuracy and relevance of your description.
+11. Write the bullets with an engaging, conversational tone, as if advising on [[domain_name_from_projects_url]]'s product benefits and features. Keep the language warm yet professional, ensuring it's informative and resonates with the reader. The brief should feel like a two-way interaction, balancing detail with approachability. The final description will have the same tone. 
+12. Identify the Target Audience - For each product category, determine whether the primary users are homeowners, DIY enthusiasts, or professional contractors. Analyze the nature and applications of the products to accurately identify the most likely audience. Once the target group is established, tailor your content's language and level of detail to their specific needs and expertise.
+
+###Example bullets 
+
+1. Wprowadzenie - Rozpocznij od podkreślenia, jak płytki podłogowe łączą w sobie elegancję z funkcjonalnością, tworząc solidną bazę dla każdego wnętrza. Zilustruj wpływ wyboru płytek na klimat i charakter przestrzeni, od tradycyjnej klasyki po współczesny minimalizm. 
+2. Materiały i technologie - Szczegółowo opisz różnorodność materiałów, jak ceramika, gres porcelanowy, czy kamień naturalny, zwracając uwagę na ich wytrzymałość i łatwość w czyszczeniu. Wyjaśnij, jak innowacyjne metody produkcji, takie jak wypalanie w wysokich temperaturach, wpływają na jakość i długotrwałość płytek. 
+3. Trwałość i odporność - Zobrazuj płytki podłogowe jako idealne rozwiązanie dla miejsc o intensywnym użytkowaniu, podkreślając ich odporność na ścieranie, zarysowania, plamy i wilgoć. Wymień konkretne właściwości, które przyczyniają się do ich trwałości i ekonomiczności w utrzymaniu. 
+4. Ekologia i zrównoważony rozwój - Zaznacz, iż płytki podłogowe to wybór proekologiczny, wskazując na ich długą żywotność i możliwości recyklingu. Wyróżnij certyfikaty środowiskowe, jakie mogą posiadać niektóre kolekcje, co świadczy o ich zgodności z zasadami zrównoważonego rozwoju. Rozważ umieszczenie tych certyfikatów w formie listy, aby czytelnik mógł szybko zidentyfikować ekologiczne opcje.
+
+###Output format 
+
+Provide the output in the below VALID JSON format:
+[
+  {
+    "tag": "Hx",
+    "heading_name": "Headline content for headline Hx",
+    "bullets: "bullets content" // Enter the guidelines content for this heading here
+  },
+  // ... Add more objects for other headings, following the format above.
+]
+
+
+
+CONTENT:
+
+
+Here is some research i have done for a product page description "[[keyword]]". Please study it deeply
+
+<research> 
+
+#Category description outline with keywords
+
+[[openai_outline_json|to_string]]
+
+#Product names from category page 
+
+[[site_products_or_subcategories|new_line]]
+
+</research>
