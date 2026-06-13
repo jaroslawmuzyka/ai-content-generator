@@ -20,15 +20,19 @@ def seed_default_prompts():
         if existing_sets.data:
             existing_ids = [r["id"] for r in existing_sets.data]
             # Wyzeruj FK w campaign_prompt_sets żeby nie blokował usuwania
-            client.table("campaign_prompt_sets")\
-                .update({"source_default_prompt_set_id": None})\
-                .in_("source_default_prompt_set_id", existing_ids)\
-                .execute()
+            for sid in existing_ids:
+                client.table("campaign_prompt_sets")\
+                    .update({"source_default_prompt_set_id": None})\
+                    .eq("source_default_prompt_set_id", sid)\
+                    .execute()
+                    
             # Usuń kroki domyślne
             for sid in existing_ids:
                 client.table("default_prompt_steps").delete().eq("default_prompt_set_id", sid).execute()
+                
             # Usuń zestawy domyślne
-            client.table("default_prompt_sets").delete().in_("id", existing_ids).execute()
+            for sid in existing_ids:
+                client.table("default_prompt_sets").delete().eq("id", sid).execute()
 
         # ── Krok 2: wstaw świeże zestawy i kroki ─────────────────────────────────────────────────
         for ct in content_types:
