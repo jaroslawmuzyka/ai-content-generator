@@ -743,9 +743,7 @@ Provide the output in the below VALID JSON format:
         "summary": "Generated summary"
      },
     // ... Add more objects for other headings, following the format above.
-]
-
-Oto pełny zarys artykułu, a poniżej masz treść, którą już napisałeś w poprzednim kroku. Twoim zadaniem jest napisanie treści dla POZOSTAŁYCH sekcji (pomiń pierwszą).""",
+]""",
         "user": """**Objective:**
 
 Craft an enriched section of category descriptions for an e-commerce website, {{domain_description}}.

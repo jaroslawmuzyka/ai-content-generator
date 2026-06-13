@@ -110,23 +110,23 @@ Przykład oczekiwanej odpowiedzi:
         
     return []
 
-def extract_product_names_with_ai(markdown_text, provider, model, max_items=100):
+def extract_products_with_ai(markdown_text, provider, model, max_items=100):
     """
     Wysyła pobrany markdown do modelu AI, by ten wyselekcjonował
-    nazwy produktów widoczne na stronie kategorii.
-    Zwraca listę nazw produktów.
+    nazwy produktów oraz ich linki (URL) widoczne na stronie kategorii.
+    Zwraca listę słowników z kluczami 'name' i 'url'.
     """
     system_prompt = f"""
 Jesteś asystentem ekstrakcji danych z formatu Markdown.
-Twoim zadaniem jest znalezienie i wyciągnięcie pełnych NAZW produktów sklepowych z podanego tekstu ze strony kategorii.
-Zignoruj nawigację, filtry, stopki. Szukaj wyłącznie konkretnych nazw produktów (np. "Krem nawilżający 50ml", "Perfumy X").
+Twoim zadaniem jest znalezienie i wyciągnięcie pełnych NAZW produktów sklepowych oraz ich LINKÓW (URL) z podanego tekstu ze strony kategorii.
+Zignoruj nawigację, filtry, stopki. Szukaj wyłącznie konkretnych produktów (np. "Krem nawilżający 50ml", "Perfumy X").
 Maksymalna liczba produktów do pobrania to: {max_items}.
 
-Zwróć wynik TYLKO i WYŁĄCZNIE jako czysty, poprawny JSON (tablicę stringów z nazwami). Bez markdownowych bloków ```json.
+Zwróć wynik TYLKO i WYŁĄCZNIE jako czysty, poprawny JSON (tablicę obiektów). Bez markdownowych bloków ```json.
 Przykład oczekiwanej odpowiedzi:
 [
-  "Nazwa produktu 1",
-  "Nazwa produktu 2"
+  {{"name": "Nazwa produktu 1", "url": "https://sklep.pl/produkt-1"}},
+  {{"name": "Nazwa produktu 2", "url": "https://sklep.pl/produkt-2"}}
 ]
     """
     short_markdown = markdown_text[:80000] 
@@ -154,7 +154,11 @@ Przykład oczekiwanej odpowiedzi:
         import json
         extracted = json.loads(raw_text.strip())
         if isinstance(extracted, list):
-            return [str(u) for u in extracted][:max_items]
+            valid_products = []
+            for item in extracted:
+                if isinstance(item, dict) and "name" in item and "url" in item:
+                    valid_products.append(item)
+            return valid_products[:max_items]
     except Exception as e:
         pass
         

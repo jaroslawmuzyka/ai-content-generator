@@ -256,17 +256,37 @@ def process_single_job(job_id, progress_callback=None):
             
             provider = job.get("provider") or "openai"
             model = job.get("model") or "gpt-4o-mini"
-            from services.jina_service import extract_product_names_with_ai
+            from services.jina_service import extract_products_with_ai
             
             if progress_callback:
                 progress_callback("Jina AI: Wyciąganie nazw produktów (AI)...", 0, total_steps)
                 
-            names = extract_product_names_with_ai(cat_content, provider, model, max_items=100)
-            if names:
-                dynamic_vars["products_content"] = "\n".join(names)
-                _save_jina_step(job_id, 4, "jina_extract_names", "Wyciąganie nazw produktów z Kategorii (AI)", dynamic_vars["products_content"])
+            products = extract_products_with_ai(cat_content, provider, model, max_items=100)
+            if products:
+                formatted_products = [f"Produkt: {p['name']}\nURL: {p['url']}" for p in products]
+                dynamic_vars["products_content"] = "\n\n".join(formatted_products)
+                _save_jina_step(job_id, 4, "jina_extract_names", "Wyciąganie nazw i URL produktów z Kategorii (AI)", dynamic_vars["products_content"])
             else:
-                _save_jina_step(job_id, 4, "jina_extract_names", "Wyciąganie nazw produktów z Kategorii (AI)", None, "Brak produktów")
+                _save_jina_step(job_id, 4, "jina_extract_names", "Wyciąganie nazw i URL produktów z Kategorii (AI)", None, "Brak produktów")
+                
+            # [ZAKOMENTOWANY STARY KOD - SCRAPOWANIE PODSTRON PRODUKTÓW]
+            # from services.jina_service import extract_product_links_with_ai
+            # links = extract_product_links_with_ai(cat_content, provider, model, max_links=50)
+            # if links:
+            #     _save_jina_step(job_id, 4, "jina_extract_links", "Wyciąganie linków produktów z Kategorii (AI)", "\n".join(links))
+            # prods_text = []
+            # prods_err = []
+            # for idx, link in enumerate(links):
+            #     if progress_callback: progress_callback(f"Scrapowanie Produktu {idx+1}/{len(links)}...", 0, total_steps)
+            #     p_text, p_err = fetch_jina_content(link, jina_api_key, eng, prod_t, prod_r, ret)
+            #     if p_text: prods_text.append(f"--- Produkt: {link} ---\n{p_text}")
+            #     elif p_err: prods_err.append(f"Produkt {link}: {p_err}")
+            #     time.sleep(1)
+            # if prods_text:
+            #     dynamic_vars["products_content"] = "\n\n".join(prods_text)
+            # err_msg = "\n".join(prods_err) if prods_err else None
+            # _save_jina_step(job_id, 5, "jina_products", "Scrapowanie zawartości wszystkich produktów (JINA)", dynamic_vars["products_content"] if prods_text else None, err_msg)
+            # [KONIEC ZAKOMENTOWANEGO KODU]
     # ========================
 
     for i, step in enumerate(steps):
@@ -358,10 +378,10 @@ def process_single_job(job_id, progress_callback=None):
             client.table("content_job_steps").insert({
                 "job_id": job_id, "step_order": step["step_order"], "step_key": step_key,
                 "step_name": step["step_name"], "status": "completed",
-                "output_text": "Połączono sekcje pomyślnie. Tekst gotowy do Humanizacji.",
+                "output_text": combined_html,
                 "provider": "system", "model": "local", "completed_at": "now()"
             }).execute()
-            previous_outputs[step_key] = "Połączono sekcje pomyślnie."
+            previous_outputs[step_key] = combined_html
             continue
 
         # -------------------------------------------------------
