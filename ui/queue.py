@@ -158,7 +158,7 @@ def render():
         badge = _status_badge(status)
         camp_name = camp_options.get(job.get("campaign_id"), "Nieznana kampania")
 
-        expander_label = f"{badge} | **{job['main_keyword']}** | {camp_name} | {job.get('content_type','?')} | {job.get('language','?')} | {job.get('created_at','')[:10]}"
+        expander_label = f"{badge} | **{job['main_keyword']}** | {camp_name} | {job.get('content_type','?')} | {job.get('language','?')} | {job.get('created_at','')[:16].replace('T', ' ')}"
 
         with st.expander(expander_label):
             info_col, action_col1, action_col2 = st.columns([3, 1, 1])

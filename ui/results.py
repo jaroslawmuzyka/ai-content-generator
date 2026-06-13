@@ -50,7 +50,7 @@ def render():
     st.subheader(f"Wybierz zadanie do podglądu ({len(jobs)} wyników)")
 
     job_opts = {
-        j["id"]: f"[{j['status'].upper()}] {j['main_keyword']} · {j['content_type']} · {j['created_at'][:10]}"
+        j["id"]: f"[{j['status'].upper()}] {j['main_keyword']} · {j['content_type']} · {j['created_at'][:16].replace('T', ' ')}"
         for j in jobs
     }
     selected_job_id = st.selectbox("Lista zadań:", list(job_opts.keys()), format_func=lambda x: job_opts[x])
