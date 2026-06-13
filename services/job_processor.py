@@ -295,6 +295,37 @@ def process_single_job(job_id, progress_callback=None):
         )
 
         # -------------------------------------------------------
+        # SPECJALNE ZACHOWANIE: Łączenie kroków 12 i 13 przed Stuffing
+        # -------------------------------------------------------
+        if step_key == "stuffing":
+            import json
+            part1_str = previous_outputs.get("first_part_outline_with_keywords_highlights", "")
+            part2_str = previous_outputs.get("continue_part_outline_with_keywords_highlights", "")
+            
+            combined_html = ""
+            for p_str in [part1_str, part2_str]:
+                if isinstance(p_str, str) and p_str.strip():
+                    try:
+                        # Może być osadzone w blokach markdown
+                        if "```json" in p_str:
+                            p_str = p_str.split("```json")[1].split("```")[0].strip()
+                        elif "```" in p_str:
+                            p_str = p_str.split("```")[1].strip()
+                            
+                        arr = json.loads(p_str)
+                        if isinstance(arr, list):
+                            for item in arr:
+                                h_name = item.get("heading_name", "")
+                                h_tag = item.get("tag", "h2").lower()
+                                content = item.get("Content", item.get("content", ""))
+                                if h_name and content:
+                                    combined_html += f"<{h_tag}>{h_name}</{h_tag}>\n<p>{content}</p>\n\n"
+                    except Exception as e:
+                        pass
+            
+            dynamic_vars["text_humanize"] = combined_html
+
+        # -------------------------------------------------------
         # PĘTLA dla seo_section_writer — pisze po jednym H2
         # -------------------------------------------------------
         if step_key == "seo_section_writer" and dynamic_vars["headings"]:

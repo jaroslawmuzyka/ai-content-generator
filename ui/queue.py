@@ -186,26 +186,48 @@ def render():
             with action_col2:
                 st.write("**Zarządzanie**")
                 if status not in ["completed", "failed"]:
-                    if st.button("❌ Anuluj", key=f"fail_{job['id']}", use_container_width=True):
-                        update_job_status(job["id"], "failed", "Zadanie ręcznie anulowane przez operatora.")
-                        st.rerun()
+                    # Zmienione "Anuluj" – jeśli status to "processing", wymusza reset do "queued" jako obejście
+                    if status == "processing":
+                        if st.button("❌ Zresetuj zawieszone", key=f"reset_{job['id']}", use_container_width=True):
+                            update_job_status(job["id"], "queued", "Zadanie zresetowane przez operatora.")
+                            st.rerun()
+                    else:
+                        if st.button("❌ Anuluj", key=f"fail_{job['id']}", use_container_width=True):
+                            update_job_status(job["id"], "failed", "Zadanie ręcznie anulowane przez operatora.")
+                            st.rerun()
                 if status == "completed":
                     st.success("Gotowe ✅")
 
 
 def _run_single_job_ui(job_id):
-    """Uruchamia pojedyncze zadanie z widoku listy i pokazuje postęp."""
+    """Uruchamia pojedyncze zadanie z widoku listy i pokazuje postęp na żywo w panelach."""
     st.markdown(f"### ⚙️ Przetwarzam zadanie `{job_id}`")
 
     progress_bar = st.progress(0)
     status_text = st.empty()
+    
+    logs_container = st.container()
+    completed_steps_keys = set()
+    from db.supabase_client import get_supabase_client
+    client = get_supabase_client()
 
     def on_progress(step_name, current, total):
         pct = min(100, int((current / total) * 100)) if total > 0 else 100
         progress_bar.progress(pct)
         status_text.info(f"Etap: **{step_name}** ({current+1}/{total})")
+        
+        # Pobierz logi dotychczas wykonanych kroków z bazy
+        res = client.table("content_job_steps").select("*").eq("job_id", job_id).order("step_order").execute()
+        for s in res.data:
+            if s["status"] == "completed" and s["step_key"] not in completed_steps_keys:
+                completed_steps_keys.add(s["step_key"])
+                with logs_container.expander(f"✅ Etap {s['step_order']}: {s['step_name']} | {s.get('provider')}/{s.get('model')}"):
+                    out = str(s.get('output_text', ''))
+                    st.caption(f"Status: {s.get('status')} | Zakończono: {s.get('completed_at', '')[:19]}")
+                    st.markdown("**Output Preview:**")
+                    st.text(out[:800] + ("..." if len(out) > 800 else ""))
 
-    with st.spinner("AI generuje treść..."):
+    with st.spinner("AI generuje treść... Proszę nie odświeżać strony."):
         success, msg = process_single_job(job_id, on_progress)
 
     if success:

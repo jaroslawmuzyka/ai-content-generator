@@ -815,7 +815,7 @@ Revised: "Taki grill, wykonany z betonu, jest nie tylko trwały, ale i..."
 Provide the revised content in {{language}} with proper HTML formatting.""",
         "user": """###Content to rewrite:
 
-{{previous_steps.perplexity_and_gramma}}"""
+{{text_humanize}}"""
     },
     {
         "order": 80, "key": "perplexity_and_gramma", "name": "Perplexity and gramma", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
@@ -855,7 +855,7 @@ Revised: "Grille betonowe reprezentują trwałość i funkcjonalność. Są też
 Provide the revised content in {{language}} with proper HTML formatting.""",
         "user": """###Content to rewrite:
 
-{{previous_steps.perplexity_and_gramma}}"""
+{{previous_steps.stuffing}}"""
     },
     {
         "order": 85, "key": "formatting", "name": "Formatting", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,

@@ -1,5 +1,6 @@
 import streamlit as st
 from services.campaign_service import get_campaigns, get_campaign_by_id, create_campaign, update_campaign, archive_campaign
+from services.jina_service import fetch_jina_content
 from utils.constants import CONTENT_TYPES, LOCALES, PROVIDERS, MODELS_BY_PROVIDER
 
 def render():
@@ -125,6 +126,27 @@ def show_create_view():
         bf_1, bf_2 = st.columns(2)
         jina_breadcrumbs_target = bf_1.text_input("Breadcrumbs Target", placeholder=".breadcrumbs", key="new_camp_jbt")
         jina_filters_target = bf_2.text_input("Filters Target", placeholder=".filters-wrapper", key="new_camp_jft")
+        
+        st.markdown("---")
+        st.markdown("##### 🧪 Tester Selektorów JINA")
+        st.caption("Podaj URL sklepu, by przetestować jak JINA widzi Twoje selektory zanim uruchomisz potężne scrapowanie.")
+        test_url = st.text_input("URL strony do przetestowania:", placeholder="https://mediamarkt.pl/...", key="new_camp_jtest_url")
+        test_selector = st.text_input("Selektor do sprawdzenia (np. z powyższych):", placeholder=".breadcrumbs", key="new_camp_jtest_sel")
+        if st.button("Sprawdź Selektor"):
+            if not test_url or not test_selector:
+                st.warning("Podaj adres URL i selektor do przetestowania.")
+            else:
+                with st.spinner("Odpytywanie Jina AI..."):
+                    j_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
+                    if not j_key:
+                        st.error("Brak klucza JINA_API_KEY w secrets.toml!")
+                    else:
+                        out = fetch_jina_content(test_url.strip(), j_key, jina_engine, test_selector.strip(), None, jina_retain_images)
+                        if out:
+                            st.success("✅ Udało się pobrać dane!")
+                            st.code(out, language="markdown")
+                        else:
+                            st.error("❌ Pusty wynik lub błąd. JINA nie znalazła tego elementu na stronie lub zablokowano dostęp.")
     
     st.write("") # Odstęp
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 4])
@@ -236,6 +258,27 @@ def show_edit_view():
         bf_1, bf_2 = st.columns(2)
         jina_breadcrumbs_target = bf_1.text_input("Breadcrumbs Target", value=camp.get("jina_breadcrumbs_target") or "", placeholder=".breadcrumbs", key="edit_camp_jbt")
         jina_filters_target = bf_2.text_input("Filters Target", value=camp.get("jina_filters_target") or "", placeholder=".filters-wrapper", key="edit_camp_jft")
+        
+        st.markdown("---")
+        st.markdown("##### 🧪 Tester Selektorów JINA")
+        st.caption("Podaj URL sklepu, by przetestować jak JINA widzi Twoje selektory zanim uruchomisz potężne scrapowanie.")
+        test_url = st.text_input("URL strony do przetestowania:", placeholder="https://mediamarkt.pl/...", key="edit_camp_jtest_url")
+        test_selector = st.text_input("Selektor do sprawdzenia (np. z powyższych):", placeholder=".breadcrumbs", key="edit_camp_jtest_sel")
+        if st.button("Sprawdź Selektor"):
+            if not test_url or not test_selector:
+                st.warning("Podaj adres URL i selektor do przetestowania.")
+            else:
+                with st.spinner("Odpytywanie Jina AI..."):
+                    j_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
+                    if not j_key:
+                        st.error("Brak klucza JINA_API_KEY w secrets.toml!")
+                    else:
+                        out = fetch_jina_content(test_url.strip(), j_key, jina_engine, test_selector.strip(), None, jina_retain_images)
+                        if out:
+                            st.success("✅ Udało się pobrać dane!")
+                            st.code(out, language="markdown")
+                        else:
+                            st.error("❌ Pusty wynik lub błąd. JINA nie znalazła tego elementu na stronie lub zablokowano dostęp.")
     
     st.write("") # Odstęp
     col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 4])
