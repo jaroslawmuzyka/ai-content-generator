@@ -198,6 +198,7 @@ def process_single_job(job_id, progress_callback=None):
             progress_callback("Scrapowanie Kategorii przez Jina AI...", 0, total_steps)
             
         eng = campaign.get("jina_engine") or "cf-browser-rendering"
+        ret = campaign.get("jina_retain_images") or "none"
         cat_t = campaign.get("jina_category_target")
         cat_r = campaign.get("jina_category_remove")
         bread_t = campaign.get("jina_breadcrumbs_target")
@@ -206,15 +207,15 @@ def process_single_job(job_id, progress_callback=None):
         # Okruszki i Filtry
         if bread_t:
             if progress_callback: progress_callback("Scrapowanie Okruszków...", 0, total_steps)
-            b_c = fetch_jina_content(job["url"], jina_api_key, eng, bread_t, None)
+            b_c = fetch_jina_content(job["url"], jina_api_key, eng, bread_t, None, ret)
             if b_c: dynamic_vars["breadcrumbs_list"] = b_c
             
         if filt_t:
             if progress_callback: progress_callback("Scrapowanie Filtrów...", 0, total_steps)
-            f_c = fetch_jina_content(job["url"], jina_api_key, eng, filt_t, None)
+            f_c = fetch_jina_content(job["url"], jina_api_key, eng, filt_t, None, ret)
             if f_c: dynamic_vars["filters_list"] = f_c
             
-        cat_content = fetch_jina_content(job["url"], jina_api_key, eng, cat_t, cat_r)
+        cat_content = fetch_jina_content(job["url"], jina_api_key, eng, cat_t, cat_r, ret)
         if cat_content:
             dynamic_vars["category_content"] = cat_content
             
@@ -232,7 +233,7 @@ def process_single_job(job_id, progress_callback=None):
             for idx, link in enumerate(links):
                 if progress_callback:
                     progress_callback(f"Scrapowanie Produktu {idx+1}/{len(links)}...", 0, total_steps)
-                p_text = fetch_jina_content(link, jina_api_key, eng, prod_t, prod_r)
+                p_text = fetch_jina_content(link, jina_api_key, eng, prod_t, prod_r, ret)
                 if p_text:
                     prods_text.append(f"--- Produkt: {link} ---\n{p_text}")
                 time.sleep(1) # Uniknięcie rate limitu

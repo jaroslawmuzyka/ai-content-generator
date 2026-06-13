@@ -7,7 +7,7 @@ from services.ai_service import generate_ai_response
 
 logger = logging.getLogger("ai_content_generator.jina")
 
-def fetch_jina_content(url, api_key, engine="cf-browser-rendering", target_selector=None, remove_selector=None):
+def fetch_jina_content(url, api_key, engine="cf-browser-rendering", target_selector=None, remove_selector=None, retain_images="none"):
     """
     Pobiera treść ze strony korzystając z Jina AI Reader API.
     """
@@ -15,7 +15,7 @@ def fetch_jina_content(url, api_key, engine="cf-browser-rendering", target_selec
     headers = {
         "Authorization": f"Bearer {api_key}",
         "X-Engine": engine,
-        "X-Retain-Images": "none"
+        "X-Retain-Images": retain_images
     }
     
     if target_selector and target_selector.strip():

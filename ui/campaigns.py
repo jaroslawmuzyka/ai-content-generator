@@ -107,7 +107,9 @@ def show_create_view():
         model = c4.selectbox("Domyślny model AI", MODELS_BY_PROVIDER.get(provider, []), key="new_camp_mod")
         
     with st.expander("Integracja Jina AI (Web Scraping)", expanded=False):
-        jina_engine = st.selectbox("Silnik renderowania (Engine)", ["cf-browser-rendering", "playwright", "default"], index=0, help="Silnik używany przez Jina do omijania zabezpieczeń.", key="new_camp_jeng")
+        c_jeng, c_jret = st.columns(2)
+        jina_engine = c_jeng.selectbox("Silnik (Engine)", ["cf-browser-rendering", "playwright", "default"], index=0, help="Silnik używany przez Jina do omijania zabezpieczeń.", key="new_camp_jeng")
+        jina_retain_images = c_jret.selectbox("Retain Images", ["none", "all", "block"], index=0, help="Domyślnie 'none', by zaoszczędzić tokeny.", key="new_camp_jret")
         
         st.markdown("##### Scrapowanie Kategorii")
         c_j1, c_j2 = st.columns(2)
@@ -141,6 +143,7 @@ def show_create_view():
                     "default_provider": provider,
                     "default_model": model,
                     "jina_engine": jina_engine,
+                    "jina_retain_images": jina_retain_images,
                     "jina_category_target": jina_category_target.strip() if jina_category_target else None,
                     "jina_category_remove": jina_category_remove.strip() if jina_category_remove else None,
                     "jina_product_target": jina_product_target.strip() if jina_product_target else None,
@@ -208,10 +211,16 @@ def show_edit_view():
     model = c4.selectbox("Domyślny model AI", models, index=mod_idx, key="edit_camp_mod")
     
     with st.expander("Integracja Jina AI (Web Scraping)", expanded=False):
+        c_jeng, c_jret = st.columns(2)
         j_engs = ["cf-browser-rendering", "playwright", "default"]
         curr_eng = camp.get("jina_engine") or "cf-browser-rendering"
         j_idx = j_engs.index(curr_eng) if curr_eng in j_engs else 0
-        jina_engine = st.selectbox("Silnik renderowania (Engine)", j_engs, index=j_idx, help="Silnik używany przez Jina.", key="edit_camp_jeng")
+        jina_engine = c_jeng.selectbox("Silnik (Engine)", j_engs, index=j_idx, help="Silnik używany przez Jina.", key="edit_camp_jeng")
+        
+        j_rets = ["none", "all", "block"]
+        curr_ret = camp.get("jina_retain_images") or "none"
+        jr_idx = j_rets.index(curr_ret) if curr_ret in j_rets else 0
+        jina_retain_images = c_jret.selectbox("Retain Images", j_rets, index=jr_idx, help="Domyślnie 'none'.", key="edit_camp_jret")
         
         st.markdown("##### Scrapowanie Kategorii")
         c_j1, c_j2 = st.columns(2)
@@ -245,6 +254,7 @@ def show_edit_view():
                     "default_provider": provider,
                     "default_model": model,
                     "jina_engine": jina_engine,
+                    "jina_retain_images": jina_retain_images,
                     "jina_category_target": jina_category_target.strip() if jina_category_target else None,
                     "jina_category_remove": jina_category_remove.strip() if jina_category_remove else None,
                     "jina_product_target": jina_product_target.strip() if jina_product_target else None,
