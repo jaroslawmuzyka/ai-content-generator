@@ -204,6 +204,17 @@ def update_campaign_prompt_step(step_id, data):
         st.error(f"Błąd zapisu kroku: {str(e)}")
         return False
 
+def delete_campaign_prompt_set(campaign_set_id):
+    client = get_supabase_client()
+    if not client: return False
+    try:
+        client.table("campaign_prompt_steps").delete().eq("campaign_prompt_set_id", campaign_set_id).execute()
+        client.table("campaign_prompt_sets").delete().eq("id", campaign_set_id).execute()
+        return True
+    except Exception as e:
+        st.error(f"Nie udało się usunąć zestawu: {str(e)}")
+        return False
+
 def update_campaign_prompt_set(set_id, data):
     client = get_supabase_client()
     if not client: return False

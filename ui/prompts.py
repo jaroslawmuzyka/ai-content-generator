@@ -2,7 +2,7 @@ import streamlit as st
 from services.prompt_service import (
     get_campaign_prompt_sets, get_campaign_prompt_steps, get_default_prompt_sets,
     copy_default_to_campaign, update_campaign_prompt_step, restore_campaign_prompt_set,
-    update_campaign_prompt_set
+    update_campaign_prompt_set, delete_campaign_prompt_set
 )
 from utils.constants import PROVIDERS, MODELS_BY_PROVIDER
 from db.supabase_client import get_supabase_client
@@ -96,7 +96,7 @@ def render():
 
     selected_set_data = next(s for s in camp_sets if s["id"] == selected_camp_set_id)
 
-    col_name, col_meta, col_restore = st.columns([3, 2, 2])
+    col_name, col_meta, col_restore, col_del = st.columns([3, 2, 2, 2])
     with col_name:
         new_set_name = st.text_input("Zmień nazwę zestawu", value=selected_set_data["name"], label_visibility="collapsed")
         if new_set_name != selected_set_data["name"] and new_set_name.strip():
@@ -107,6 +107,9 @@ def render():
     with col_restore:
         if st.button("🔄 Przywróć domyślne", type="secondary", help="Nadpisze wszystkie Twoje zmiany w tym zestawie fabryczną wersją."):
             st.session_state[f"confirm_restore_{selected_camp_set_id}"] = True
+    with col_del:
+        if st.button("🗑️ Usuń zestaw", type="secondary", help="Trwale usuwa ten zestaw promptów z kampanii."):
+            st.session_state[f"confirm_delete_{selected_camp_set_id}"] = True
 
     if st.session_state.get(f"confirm_restore_{selected_camp_set_id}"):
         st.warning("⚠️ Czy na pewno chcesz przywrócić domyślny zestaw? **Wszystkie zmiany zostaną utracone** i nie będzie możliwości cofnięcia.")
@@ -118,6 +121,18 @@ def render():
             st.rerun()
         if rc2.button("❌ Anuluj"):
             st.session_state[f"confirm_restore_{selected_camp_set_id}"] = False
+            st.rerun()
+
+    if st.session_state.get(f"confirm_delete_{selected_camp_set_id}"):
+        st.error("⚠️ Czy na pewno chcesz trwale USUNĄĆ ten zestaw promptów z obecnej kampanii?")
+        dc1, dc2 = st.columns([1, 6])
+        if dc1.button("✅ Tak, usuń", type="primary"):
+            if delete_campaign_prompt_set(selected_camp_set_id):
+                st.success("Zestaw usunięty!")
+            st.session_state[f"confirm_delete_{selected_camp_set_id}"] = False
+            st.rerun()
+        if dc2.button("❌ Nie, anuluj"):
+            st.session_state[f"confirm_delete_{selected_camp_set_id}"] = False
             st.rerun()
 
     st.markdown("---")
