@@ -267,6 +267,12 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
                                   "tokens_in": 0, "tokens_out": 0}
             last_output = ""
 
+    results["__jina"] = {
+        "breadcrumbs": dynamic_vars.get("breadcrumbs_list", ""),
+        "filters": dynamic_vars.get("filters_list", ""),
+        "category": dynamic_vars.get("category_content", ""),
+        "products": dynamic_vars.get("products_content", "")
+    }
     return results
 
 

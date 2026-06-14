@@ -331,6 +331,22 @@ def render():
                 sc3.metric("Wymaga poprawy (<7)", sum(1 for s in scores if s<7))
                 st.divider()
 
+            jina_data = cur.get("outputs", {}).get("__jina")
+            if jina_data and any(jina_data.values()):
+                with st.expander("🌐 Podgląd danych pobranych przez Jina AI (Scrapowanie)"):
+                    if jina_data.get("breadcrumbs"):
+                        st.markdown("**Okruszki (Breadcrumbs):**")
+                        st.text_area("", value=jina_data["breadcrumbs"], height=100, disabled=True, key=f"j_b_{cur['number']}")
+                    if jina_data.get("filters"):
+                        st.markdown("**Filtry (Filters):**")
+                        st.text_area("", value=jina_data["filters"], height=150, disabled=True, key=f"j_f_{cur['number']}")
+                    if jina_data.get("category"):
+                        st.markdown("**Treść Kategorii (Category content):**")
+                        st.text_area("", value=jina_data["category"], height=200, disabled=True, key=f"j_c_{cur['number']}")
+                    if jina_data.get("products"):
+                        st.markdown("**Produkty (Products links/names):**")
+                        st.text_area("", value=jina_data["products"], height=200, disabled=True, key=f"j_p_{cur['number']}")
+
             if st.button("🔍 Oceń wszystkie kroki", type="primary"):
                 prompts = cur["prompts"]
                 outputs = cur["outputs"]
