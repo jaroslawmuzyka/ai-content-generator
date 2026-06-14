@@ -346,12 +346,14 @@ def render():
             sorted_keys = sorted(cur["prompts"].keys(), key=lambda k: cur["prompts"][k].get("step_order",999))
             for sk in sorted_keys:
                 si = cur["prompts"][sk]; oi = cur["outputs"].get(sk,{}); ev = cur["evaluations"].get(sk)
+                p_prov = si.get('provider') or prov
+                p_mdl = si.get('model') or mdl
                 if oi.get("skipped"):
-                    lbl = f"⏭️ {si['step_name']} (pominięty)"
+                    lbl = f"⏭️ {si['step_name']} (pominięty) | {p_prov}/{p_mdl}"
                 elif ev:
-                    lbl = f"{_sc(ev.get('score',0))} Krok {si['step_order']}: {si['step_name']} — {ev.get('score',0)}/10 {_vl(ev.get('verdict',''))}"
+                    lbl = f"{_sc(ev.get('score',0))} Krok {si['step_order']}: {si['step_name']} — {ev.get('score',0)}/10 {_vl(ev.get('verdict',''))} | {p_prov}/{p_mdl}"
                 else:
-                    lbl = f"⚪ Krok {si['step_order']}: {si['step_name']} — (nieoceniony)"
+                    lbl = f"⚪ Krok {si['step_order']}: {si['step_name']} — (nieoceniony) | {p_prov}/{p_mdl}"
                 with st.expander(lbl):
                     out = oi.get("output","")
                     if oi.get("error"):
@@ -368,6 +370,25 @@ def render():
                         if ev.get("strengths"): st.success("✅ " + " | ".join(ev["strengths"]))
                         if ev.get("weaknesses"): st.error("❌ " + " | ".join(ev["weaknesses"]))
                         if ev.get("improvement_suggestions"): st.info("💡 " + " | ".join(ev["improvement_suggestions"]))
+
+            st.divider()
+            st.subheader("📝 Końcowa treść")
+            last_sk = sorted_keys[-1] if sorted_keys else None
+            final_content = ""
+            if last_sk:
+                for k in reversed(sorted_keys):
+                    if not cur["outputs"].get(k, {}).get("skipped") and cur["outputs"].get(k, {}).get("output"):
+                        final_content = cur["outputs"][k]["output"]
+                        break
+                        
+            if final_content:
+                tab_html, tab_raw = st.tabs(["Renderowany HTML", "Kod HTML"])
+                with tab_html:
+                    st.components.v1.html(final_content, height=400, scrolling=True)
+                with tab_raw:
+                    st.text_area("Gotowa treść", value=final_content, height=300, disabled=True, key=f"fc_{cur['number']}")
+            else:
+                st.info("Brak końcowej treści do wyświetlenia.")
 
     # =========================================================
     # TAB 4 — PROPOZYCJE ULEPSZEŃ

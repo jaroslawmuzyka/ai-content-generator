@@ -210,7 +210,7 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
                 results[step_key] = {"output": final_text.strip(), "skipped": False, "tokens_in": tin, "tokens_out": tout}
             continue
             
-        if used_provider == "system" and used_model == "local":
+        if str(used_provider).strip().lower() == "system" and str(used_model).strip().lower() == "local":
             if step_key == "stuffing":
                 f_html = previous_outputs.get("seo_section_writer", dynamic_vars["final_html"])
                 previous_outputs[step_key] = f_html
