@@ -13,7 +13,7 @@ from utils.constants import CONTENT_TYPES, LOCALES, PROVIDERS, MODELS_BY_PROVIDE
 
 def _init():
     if "prompt_lab" not in st.session_state or st.session_state["prompt_lab"] is None:
-        st.session_state["prompt_lab"] = {"test_job": {}, "provider": "openai",
+        st.session_state["prompt_lab"] = {"session_id": None, "test_job": {}, "provider": "openai",
                                            "model": "gpt-4o-mini", "strategy_data": None,
                                            "campaign_prompt_set_id": None, "iterations": []}
 
@@ -43,11 +43,11 @@ def _diff(a, b):
                                    fromfile="PRZED", tofile="PO", lineterm=""))
     return "".join(d) if d else "(brak zmian)"
 
-def _build_job(main_kw, sec_kw, ct, lang, locale, tlen, notes, cur_content, provider, model):
+def _build_job(main_kw, sec_kw, ct, lang, locale, tlen, notes, cur_content, provider, model, campaign_id, url):
     return {"main_keyword": main_kw, "secondary_keywords": sec_kw, "content_type": ct,
             "language": lang, "locale": locale, "target_length": tlen, "current_content": cur_content,
-            "additional_notes": notes, "url": "", "is_existing_url": False,
-            "content_goal": "", "call_to_action": "",
+            "additional_notes": notes, "url": url, "is_existing_url": False,
+            "content_goal": "", "call_to_action": "", "campaign_id": campaign_id,
             "target_audience_override": None, "persona_override": None, "tone_override": None,
             "provider": provider, "model": model}
 
@@ -63,8 +63,9 @@ def _job_form(key_prefix):
     c6, c7 = st.columns(2)
     tlen = c6.number_input("Długość (znaki)", 0, 20000, 4000, 500, key=f"{key_prefix}_len")
     notes = c7.text_input("Uwagi", key=f"{key_prefix}_notes")
+    url = st.text_input("Adres URL do scrapowania JINA (opcjonalnie)", key=f"{key_prefix}_url", help="Jeśli kampania ma ustalone targety JINA, ten URL zostanie zescrapowany.")
     cur = st.text_area("Aktualna treść (opcja)", height=60, key=f"{key_prefix}_cur")
-    return main_kw, sec_kw, ct, lang, locale, tlen, notes, cur
+    return main_kw, sec_kw, ct, lang, locale, tlen, notes, url, cur
 
 
 def _provider_form(key_prefix):
@@ -126,6 +127,13 @@ def render():
                 bar.empty(); ph.empty()
                 pending["outputs"] = outputs
                 pending["pending_test"] = False
+                
+                from services.prompt_lab_db import save_lab_session
+                camp_id = _lab().get("test_job", {}).get("campaign_id")
+                set_id = _lab().get("campaign_prompt_set_id")
+                new_sess_id = save_lab_session(_lab().get("session_id"), camp_id, set_id, _lab())
+                if new_sess_id: _lab()["session_id"] = new_sess_id
+                
                 st.success(f"✅ Iteracja {pending['number']} uruchomiona! Przejdź do '📊 Wyniki i Ocena'.")
                 st.rerun()
 
@@ -145,7 +153,7 @@ def render():
             sel_set = st.selectbox("Zestaw promptów:", list(set_opts.keys()),
                                    format_func=lambda x: set_opts[x], key="m_set")
             st.divider()
-            main_kw, sec_kw, ct, lang, locale, tlen, notes, cur_content = _job_form("m")
+            main_kw, sec_kw, ct, lang, locale, tlen, notes, url, cur_content = _job_form("m")
             prov, mdl = _provider_form("m")
             st.divider()
             iter_n = len(_lab()["iterations"]) + 1
@@ -158,7 +166,7 @@ def render():
                     st.error("Brak kroków w zestawie.")
                     st.stop()
                 strategy = get_campaign_strategy(sel_camp)
-                job = _build_job(main_kw, sec_kw, ct, lang, locale, tlen, notes, cur_content, prov, mdl)
+                job = _build_job(main_kw, sec_kw, ct, lang, locale, tlen, notes, cur_content, prov, mdl, sel_camp, url)
                 prompts_snap = {
                     s["step_key"]: {"system": s["system_prompt"], "user": s["user_prompt"],
                                     "step_name": s["step_name"], "step_order": s["step_order"],
@@ -178,6 +186,10 @@ def render():
                     "number": iter_n, "prompts": prompts_snap,
                     "outputs": outputs, "evaluations": {}, "proposals": {}, "auto": False
                 })
+                from services.prompt_lab_db import save_lab_session
+                new_sess_id = save_lab_session(_lab().get("session_id"), sel_camp, sel_set, _lab())
+                if new_sess_id: _lab()["session_id"] = new_sess_id
+                
                 st.success(f"✅ Iteracja {iter_n} zakończona! Przejdź do '📊 Wyniki i Ocena'.")
                 st.rerun()
 
@@ -463,6 +475,12 @@ def render():
                                 "number": next_num, "prompts": new_prompts,
                                 "outputs": {}, "evaluations": {}, "proposals": {}, "pending_test": True
                             })
+                            from services.prompt_lab_db import save_lab_session
+                            c_id = _lab().get("test_job", {}).get("campaign_id")
+                            s_id = _lab().get("campaign_prompt_set_id")
+                            new_s_id = save_lab_session(_lab().get("session_id"), c_id, s_id, _lab())
+                            if new_s_id: _lab()["session_id"] = new_s_id
+                            
                             st.session_state["lab_next_iter_ready"] = next_num
                             st.rerun()
 
@@ -478,15 +496,48 @@ def render():
                 st.session_state["lab_next_iter_ready"] = None
                 st.rerun()
 
+        if cur:
+            st.divider()
+            st.subheader("💾 Zapisz bieżące prompty do kampanii")
+            st.write("Skopiuj prompty z tej iteracji do nowego zestawu w bieżącej kampanii.")
+            from services.prompt_service import save_lab_prompts_to_campaign
+            c1, c2 = st.columns([3, 1])
+            new_set_name = c1.text_input("Nazwa nowego zestawu", value=f"Ulepszony po iteracji {cur['number']}")
+            if c2.button("Zapisz", use_container_width=True):
+                camp_id = _lab().get("test_job", {}).get("campaign_id")
+                set_id = _lab().get("campaign_prompt_set_id")
+                if camp_id and set_id:
+                    if save_lab_prompts_to_campaign(camp_id, set_id, new_set_name, cur["prompts"]):
+                        st.success("Pomyślnie zapisano nowy zestaw promptów w kampanii!")
+                else:
+                    st.error("Nie można zapisać: brak wybranej kampanii. Wykonaj nową iterację z wybraną kampanią z listy.")
+
     # =========================================================
     # TAB 5 — HISTORIA
     # =========================================================
     with tab_history:
+        st.subheader("🗄️ Baza historycznych sesji")
+        from services.prompt_lab_db import load_lab_sessions
+        db_sessions = load_lab_sessions()
+        if db_sessions:
+            s_options = {s["id"]: f"Zaktualizowano: {s.get('updated_at','')} (ID Sesji: {s['id']})" for s in db_sessions}
+            sel_sess = st.selectbox("Wybierz sesję do przywrócenia:", list(s_options.keys()), format_func=lambda x: s_options[x])
+            if st.button("Przywróć wybraną sesję z bazy", type="primary"):
+                for s in db_sessions:
+                    if s["id"] == sel_sess:
+                        st.session_state["prompt_lab"] = s["session_data"]
+                        st.session_state["prompt_lab"]["session_id"] = s["id"]
+                        st.success("Przywrócono sesję! Możesz przejrzeć zakładki Wyników i Ulepszeń.")
+                        st.rerun()
+        else:
+            st.info("Brak zapisanych sesji w bazie.")
+
+        st.divider()
+        st.subheader("📜 Historia iteracji (bieżąca sesja)")
         iters = _lab()["iterations"]
         if not iters:
-            st.info("Brak historii.")
+            st.info("Brak iteracji w bieżącej sesji.")
         else:
-            st.subheader("Historia wszystkich iteracji")
 
             # ── Summary table ─────────────────────────────────────────
             rows = []

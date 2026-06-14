@@ -215,6 +215,48 @@ def delete_campaign_prompt_set(campaign_set_id):
         st.error(f"Nie udało się usunąć zestawu: {str(e)}")
         return False
 
+def save_lab_prompts_to_campaign(campaign_id, source_set_id, new_name, prompts_dict):
+    client = get_supabase_client()
+    if not client: return False
+    try:
+        orig_set = client.table("campaign_prompt_sets").select("*").eq("id", source_set_id).execute().data[0]
+        
+        new_set_data = {
+            "campaign_id": campaign_id,
+            "name": new_name,
+            "source_default_prompt_set_id": orig_set.get("source_default_prompt_set_id"),
+            "content_type": orig_set.get("content_type"),
+            "language": orig_set.get("language")
+        }
+        new_set = client.table("campaign_prompt_sets").insert(new_set_data).execute().data[0]
+        
+        orig_steps = client.table("campaign_prompt_steps").select("*").eq("campaign_prompt_set_id", source_set_id).execute().data
+        orig_steps_dict = {s["step_key"]: s for s in orig_steps}
+        
+        for sk, info in prompts_dict.items():
+            orig = orig_steps_dict.get(sk, {})
+            new_step = {
+                "campaign_prompt_set_id": new_set["id"],
+                "step_order": info.get("step_order", orig.get("step_order", 0)),
+                "step_key": sk,
+                "step_name": info.get("step_name", orig.get("step_name", sk)),
+                "system_prompt": info.get("system", orig.get("system_prompt", "")),
+                "user_prompt": info.get("user", orig.get("user_prompt", "")),
+                "provider": orig.get("provider"),
+                "model": orig.get("model"),
+                "temperature": info.get("temperature", orig.get("temperature", 0.7)),
+                "max_tokens": info.get("max_tokens", orig.get("max_tokens", 2000)),
+                "output_type": orig.get("output_type", "text"),
+                "is_active": info.get("is_active", orig.get("is_active", True)),
+                "stage_group": orig.get("stage_group", "seo")
+            }
+            client.table("campaign_prompt_steps").insert(new_step).execute()
+        return True
+    except Exception as e:
+        import streamlit as st
+        st.error(f"Zapisywanie do bazy nie powiodło się: {str(e)}")
+        return False
+
 def update_campaign_prompt_set(set_id, data):
     client = get_supabase_client()
     if not client: return False

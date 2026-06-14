@@ -106,10 +106,55 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
     dynamic_vars = {
         "knowledge": "", "knowledge_graph": "", "example_headings": "",
         "headings": "", "heading": "", "already_written_part": "",
-        "current_step_output": "", "context": "", "final_html": ""
+        "current_step_output": "", "context": "", "final_html": "",
+        "breadcrumbs_list": "", "filters_list": "", "category_content": "", "products_content": ""
     }
     results = {}
     last_output = ""
+
+    # === JINA AI SCRAPING DLA PROMPT LAB ===
+    import streamlit as st
+    from services.campaign_service import get_campaign_by_id
+    campaign = get_campaign_by_id(job_data.get("campaign_id")) if job_data.get("campaign_id") else None
+    jina_api_key = st.secrets.get("JINA_API_KEY") if hasattr(st, "secrets") else None
+
+    if job_data.get("url") and jina_api_key and campaign:
+        import time
+        from services.jina_service import fetch_jina_content, extract_products_with_ai
+
+        if progress_cb: progress_cb("Scrapowanie Jina AI...", 0, len(steps))
+
+        bread_t = campaign.get("jina_breadcrumbs_target")
+        filt_t = campaign.get("jina_filters_target")
+        cat_t = campaign.get("jina_category_target")
+        cat_r = campaign.get("jina_category_remove")
+        ret = campaign.get("jina_retain_images", "none")
+        eng = campaign.get("jina_engine", "cf-browser-rendering")
+
+        if bread_t:
+            if progress_cb: progress_cb("Scrapowanie Okruszków...", 0, len(steps))
+            b_c, _ = fetch_jina_content(job_data["url"], jina_api_key, eng, bread_t, None, ret)
+            if b_c: dynamic_vars["breadcrumbs_list"] = b_c
+            
+        if filt_t:
+            if progress_cb: progress_cb("Scrapowanie Filtrów...", 0, len(steps))
+            time.sleep(2)
+            f_c, _ = fetch_jina_content(job_data["url"], jina_api_key, eng, filt_t, None, ret)
+            if f_c: dynamic_vars["filters_list"] = f_c
+            
+        if cat_t:
+            if progress_cb: progress_cb("Scrapowanie Kategorii...", 0, len(steps))
+            time.sleep(2)
+            cat_c, _ = fetch_jina_content(job_data["url"], jina_api_key, eng, cat_t, cat_r, ret)
+            if cat_c: 
+                dynamic_vars["category_content"] = cat_c
+                if progress_cb: progress_cb("Jina AI: Wyciąganie produktów (AI)...", 0, len(steps))
+                prods = extract_products_with_ai(cat_c, provider, model, max_items=100)
+                if prods:
+                    formatted_prods = [f"Produkt: {p['name']}\nURL: {p['url']}" for p in prods]
+                    dynamic_vars["products_content"] = "\n\n".join(formatted_prods)
+
+    # =======================================
 
     for i, step in enumerate(steps):
         step_key = step["step_key"]
@@ -163,6 +208,17 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
                 previous_outputs[step_key] = final_text.strip()
                 last_output = final_text.strip()
                 results[step_key] = {"output": final_text.strip(), "skipped": False, "tokens_in": tin, "tokens_out": tout}
+            continue
+            
+        if used_provider == "system" and used_model == "local":
+            if step_key == "stuffing":
+                f_html = previous_outputs.get("seo_section_writer", dynamic_vars["final_html"])
+                previous_outputs[step_key] = f_html
+                last_output = f_html
+                results[step_key] = {"output": f_html, "skipped": False, "tokens_in": 0, "tokens_out": 0}
+            else:
+                previous_outputs[step_key] = ""
+                results[step_key] = {"output": "", "skipped": True, "tokens_in": 0, "tokens_out": 0}
             continue
 
         sp = _replace_variables(step["system_prompt"], job_data, previous_outputs, dynamic_vars)
