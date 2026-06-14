@@ -210,15 +210,46 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
                 results[step_key] = {"output": final_text.strip(), "skipped": False, "tokens_in": tin, "tokens_out": tout}
             continue
             
+        if step_key == "stuffing":
+            import json
+            part1_key = next((s["step_key"] for s in steps if "First part" in s["step_name"]), None)
+            part2_key = next((s["step_key"] for s in steps if "Continue part" in s["step_name"]), None)
+            
+            part1_str = previous_outputs.get(part1_key, "") if part1_key else ""
+            part2_str = previous_outputs.get(part2_key, "") if part2_key else ""
+            
+            combined_html = ""
+            for p_str in [part1_str, part2_str]:
+                if isinstance(p_str, str) and p_str.strip():
+                    try:
+                        if "```json" in p_str:
+                            p_str = p_str.split("```json")[1].split("```")[0].strip()
+                        elif "```" in p_str:
+                            p_str = p_str.split("```")[1].strip()
+                            
+                        arr = json.loads(p_str)
+                        if isinstance(arr, list):
+                            for item in arr:
+                                h_name = item.get("heading_name", "")
+                                h_tag = item.get("tag", "h2").lower()
+                                content = item.get("Content", item.get("content", ""))
+                                if h_name and content:
+                                    combined_html += f"<{h_tag}>{h_name}</{h_tag}>\n<p>{content}</p>\n\n"
+                    except Exception as e:
+                        pass
+            
+            if not combined_html:
+                combined_html = previous_outputs.get("seo_section_writer", dynamic_vars.get("final_html", ""))
+                
+            dynamic_vars["text_humanize"] = combined_html
+            previous_outputs[step_key] = combined_html
+            last_output = combined_html
+            results[step_key] = {"output": combined_html, "skipped": False, "tokens_in": 0, "tokens_out": 0}
+            continue
+
         if str(used_provider).strip().lower() == "system" and str(used_model).strip().lower() == "local":
-            if step_key == "stuffing":
-                f_html = previous_outputs.get("seo_section_writer", dynamic_vars["final_html"])
-                previous_outputs[step_key] = f_html
-                last_output = f_html
-                results[step_key] = {"output": f_html, "skipped": False, "tokens_in": 0, "tokens_out": 0}
-            else:
-                previous_outputs[step_key] = ""
-                results[step_key] = {"output": "", "skipped": True, "tokens_in": 0, "tokens_out": 0}
+            previous_outputs[step_key] = ""
+            results[step_key] = {"output": "", "skipped": True, "tokens_in": 0, "tokens_out": 0}
             continue
 
         sp = _replace_variables(step["system_prompt"], job_data, previous_outputs, dynamic_vars)
