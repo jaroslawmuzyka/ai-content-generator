@@ -229,7 +229,7 @@ def render():
             sel_set_a = st.selectbox("Zestaw promptów:", list(set_opts_a.keys()),
                                      format_func=lambda x: set_opts_a[x], key="a_set")
             st.divider()
-            main_kw_a, sec_kw_a, ct_a, lang_a, locale_a, tlen_a, notes_a, cur_a = _job_form("a")
+            main_kw_a, sec_kw_a, ct_a, lang_a, locale_a, tlen_a, notes_a, url_a, cur_a = _job_form("a")
             prov_a, mdl_a = _provider_form("a")
             st.divider()
 
@@ -250,7 +250,7 @@ def render():
                     st.error("Brak kroków w zestawie.")
                     st.stop()
                 strategy_a = get_campaign_strategy(sel_camp_a)
-                job_a = _build_job(main_kw_a, sec_kw_a, ct_a, lang_a, locale_a, tlen_a, notes_a, cur_a, prov_a, mdl_a)
+                job_a = _build_job(main_kw_a, sec_kw_a, ct_a, lang_a, locale_a, tlen_a, notes_a, cur_a, prov_a, mdl_a, sel_camp_a, url_a)
                 _lab().update({"campaign_prompt_set_id": sel_set_a, "test_job": job_a,
                                 "provider": prov_a, "model": mdl_a, "strategy_data": strategy_a})
 

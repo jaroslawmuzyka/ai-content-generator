@@ -113,7 +113,7 @@ def generate_export_xlsx(jobs, steps):
         # Wyciągnij prawdziwą liczbę znaków bez tagów HTML, jeśli tekst istnieje
         final_len = 0
         if job.get("final_html"):
-            final_len = len(BeautifulSoup(job["final_html"], "html.parser").get_text(strip=True, separator=" "))
+            final_len = len(" ".join(BeautifulSoup(job["final_html"], "html.parser").get_text(separator=" ").split()))
             
         final_contents_data.append({
             "id": job["id"],

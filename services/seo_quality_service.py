@@ -18,7 +18,7 @@ def _count_text_chars(html: str) -> int:
     if not html:
         return 0
     soup = BeautifulSoup(html, "html.parser")
-    return len(soup.get_text(separator=" ", strip=True))
+    return len(" ".join(soup.get_text(separator=" ").split()))
 
 
 def _detect_duplicate_headings(html: str) -> list:
@@ -124,7 +124,7 @@ def analyze_seo_quality(job: dict, final_html: str, faq_html: str = "", meta_tit
         report["warnings"].append("Wykryto znaczniki Markdown w HTML — model zwrócił niepoprawny format.")
 
     soup = BeautifulSoup(final_html, "html.parser")
-    text_only = soup.get_text(separator=" ", strip=True)
+    text_only = " ".join(soup.get_text(separator=" ").split())
     report["char_count"] = len(text_only)
 
     # Długość i odchylenie
