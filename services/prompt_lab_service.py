@@ -337,6 +337,8 @@ def run_auto_loop(initial_steps, job_data, provider, model, strategy_data,
             "is_active": s.get("is_active", True),
             "temperature": s.get("temperature", 0.7),
             "max_tokens": s.get("max_tokens", 1500),
+            "provider": s.get("provider"),
+            "model": s.get("model"),
         }
         for s in initial_steps
     }

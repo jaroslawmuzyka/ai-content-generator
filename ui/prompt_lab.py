@@ -172,7 +172,9 @@ def render():
                                     "step_name": s["step_name"], "step_order": s["step_order"],
                                     "is_active": s.get("is_active", True),
                                     "temperature": s.get("temperature", 0.7),
-                                    "max_tokens": s.get("max_tokens", 1500)}
+                                    "max_tokens": s.get("max_tokens", 1500),
+                                    "provider": s.get("provider"),
+                                    "model": s.get("model")}
                     for s in steps
                 }
                 _lab().update({"campaign_prompt_set_id": sel_set, "test_job": job,
