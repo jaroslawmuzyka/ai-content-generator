@@ -1,5 +1,5 @@
 import json
-from services.supabase_client import get_supabase_client
+from db.supabase_client import get_supabase_client
 
 def save_lab_session(session_id, campaign_id, campaign_prompt_set_id, session_data):
     client = get_supabase_client()
