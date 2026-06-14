@@ -289,14 +289,14 @@ def evaluate_step(step_key, step_name, system_prompt_used, user_prompt_used, out
                 "weaknesses": ["Brak outputu"], "improvement_suggestions": ["Sprawdź klucze API i konfigurację"]}
 
     purpose = STEP_PURPOSES.get(step_key, "Nieznany cel etapu")
-    sys_pr = system_prompt_used[:1000] + ("..." if len(system_prompt_used) > 1000 else "")
-    usr_pr = user_prompt_used[:2000] + ("..." if len(user_prompt_used) > 2000 else "")
+    sys_pr = system_prompt_used[:5000] + ("..." if len(system_prompt_used) > 5000 else "")
+    usr_pr = user_prompt_used[:5000] + ("..." if len(user_prompt_used) > 5000 else "")
     
     prompt = _EVAL_USER.format(
         step_name=step_name, purpose=purpose,
         sys_preview=sys_pr,
         user_preview=usr_pr,
-        output=output_text[:3000] + ("..." if len(output_text) > 3000 else ""),
+        output=output_text[:30000] + ("..." if len(output_text) > 30000 else ""),
         main_keyword=job_data.get("main_keyword", ""),
         language=job_data.get("language", ""),
         content_type=job_data.get("content_type", "")

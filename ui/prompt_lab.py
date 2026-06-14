@@ -404,7 +404,8 @@ def render():
             if final_content:
                 tab_html, tab_raw = st.tabs(["Renderowany HTML", "Kod HTML"])
                 with tab_html:
-                    st.components.v1.html(final_content, height=400, scrolling=True)
+                    safe_html = final_content.replace("<script", "&lt;script").replace("</script>", "&lt;/script&gt;")
+                    st.markdown(safe_html, unsafe_allow_html=True)
                 with tab_raw:
                     st.text_area("Gotowa treść", value=final_content, height=300, disabled=True, key=f"fc_{cur['number']}")
             else:
