@@ -404,6 +404,12 @@ def render():
             if final_content:
                 tab_html, tab_raw = st.tabs(["Renderowany HTML", "Kod HTML"])
                 with tab_html:
+                    meta_dict = cur.get("outputs", {}).get("__meta", {})
+                    m_title = meta_dict.get("title", "")
+                    m_desc = meta_dict.get("description", "")
+                    if m_title or m_desc:
+                        st.markdown(f"<h2>{m_title or 'Brak Meta Title'}</h2><em>{m_desc or 'Brak Meta Description'}</em><hr>", unsafe_allow_html=True)
+                        
                     safe_html = final_content.replace("<script", "&lt;script").replace("</script>", "&lt;/script&gt;")
                     st.markdown(safe_html, unsafe_allow_html=True)
                 with tab_raw:

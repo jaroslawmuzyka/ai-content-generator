@@ -279,6 +279,32 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
         "category": dynamic_vars.get("category_content", ""),
         "products": dynamic_vars.get("products_content", "")
     }
+    # Extract meta title and description if available
+    meta_title = ""
+    meta_desc = ""
+    meta_key = next((s["step_key"] for s in steps if "Meta titles" in s.get("step_name", "")), "meta_titles_and_descriptions")
+    out_meta = previous_outputs.get(meta_key)
+    if isinstance(out_meta, str):
+        import json
+        import re
+        def _strip_blocks(txt):
+            if "```json" in txt: return txt.split("```json")[1].split("```")[0].strip()
+            elif "```" in txt: return txt.split("```")[1].strip()
+            return txt
+        try:
+            out_meta = json.loads(_strip_blocks(out_meta))
+        except:
+            pass
+            
+    if isinstance(out_meta, dict):
+        meta_title = str(out_meta.get("title1", "")).strip()
+        meta_desc = str(out_meta.get("metaDescription1", "")).strip()
+        
+    results["__meta"] = {
+        "title": meta_title,
+        "description": meta_desc
+    }
+    
     return results
 
 
