@@ -1,6 +1,7 @@
 PROMPTS_MM = [
     {
         "order": 10, "key": "keyword_for_products_name", "name": "Keyword for products name", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-4o",
         "sys": """Jesteś ekspertem SEO i Copywritingu.""",
         "user": """##Task:
 
@@ -26,6 +27,7 @@ Provide the keyword phrase only, with no additional information or context."""
     },
     {
         "order": 15, "key": "keyword_for_breadcrumbs", "name": "Keyword for breadcrumbs", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-4o",
         "sys": """Jesteś ekspertem SEO i Copywritingu.""",
         "user": """##Task:
 
@@ -50,6 +52,7 @@ Provide the keyword phrase only, with no additional information or context."""
     },
     {
         "order": 20, "key": "keywords_refactoring_by_ai", "name": "Keywords refactoring by AI", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-4o",
         "sys": """Jesteś ekspertem SEO i Copywritingu.""",
         "user": """SYSEM
 
@@ -106,6 +109,7 @@ Example 3: For the pair "narzędzia ogrodnicze" and "ogrodnicze narzędzia," cho
     },
     {
         "order": 25, "key": "outline_mm", "name": "Outline mm", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-5.4",
         "sys": """Jesteś ekspertem SEO i Copywritingu.""",
         "user": """SYSTEM:
 
@@ -229,6 +233,7 @@ Create outline for {{domain_name}} category "{{main_keyword}}".
     },
     {
         "order": 30, "key": "duplicate_of_duplicate_of_outline", "name": "Duplicate of Duplicate of Outline", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-5.4",
         "sys": """You are a SEO copywriter creating an outline in {{language}} for an e-commerce filter/subcategory "{{main_keyword}}".
 
 ---
@@ -337,6 +342,7 @@ Return ONLY valid JSON:
     },
     {
         "order": 35, "key": "outline_rewrite_for_content_length", "name": "Outline Rewrite for Content length", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-4o",
         "sys": """You are a professional copywriter with extensive experience in SEO preparing {{language}} outline for an e-commerce subcategory description for the topic  "{{main_keyword}}"
 
 ## Output
@@ -403,6 +409,7 @@ Keywords for Optimization:
     },
     {
         "order": 40, "key": "meta_titles_and_descriptions", "name": "Meta titles and descriptions", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-4o",
         "sys": """Act as a copywriter skilled in SEO. 
 
 ##Output Format:
@@ -434,6 +441,7 @@ Ensure that the final output is ready to be used on the website and can improve 
     },
     {
         "order": 45, "key": "keywords_for_outline", "name": "Keywords for outline", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-4o",
         "sys": """Construct a JSON array to document the matched pairs, using the structure below to organize the data. This array will contain objects with properties for "heading_name" (the headline), and "keywords" (an array of matched keywords).
 The JSON output should list all headlines in the order they were provided, even the ones without keywords assigned. 
 Confirm that each keyword is used only once across the entire JSON structure to avoid duplication.
@@ -466,6 +474,7 @@ Provide the output in the below VALID JSON format:
     },
     {
         "order": 50, "key": "filters_for_outline_with_keywords", "name": "Filters for outline with keywords", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-4o",
         "sys": """You are a professional copywriter with extensive SEO experience tasked with enhancing the description of an e-commerce subcategory. Your role is to accurately match a list of facet filters and product characteristics to suitable headlines for product category pages on {{domain_description}}.
 
 - Begin by reading the facet filters and understanding their specific context, particularly focusing on floor tiles.
@@ -507,6 +516,7 @@ Integrate a provided list of filters into an existing structure of headlines for
     },
     {
         "order": 55, "key": "highlights_for_outline_with_keywords", "name": "Highlights for outline with keywords", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-4o",
         "sys": """### Follow these rules:
 
 1. Evaluate each heading and its associated keywords to determine the core message and value proposition that would appeal to a potential customer.
@@ -554,6 +564,7 @@ Provide the output in the below VALID JSON format:
     },
     {
         "order": 60, "key": "highlights_second_for_outline_with_keywords", "name": "Highlights Second for outline with keywords", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-4.1",
         "sys": """### Follow these rules:
 
 1. Evaluate each heading and its associated keywords to determine the core message and value proposition that would appeal to a potential customer.
@@ -609,6 +620,7 @@ Please continue the above content, maintaining the same style and tone as in the
     },
     {
         "order": 65, "key": "first_part_outline_with_keywords_highlights", "name": "First part outline with keywords,highlights", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-5.4",
         "sys": """Act as an {{domain}} employee who assists clients in selecting the right products in {{language}}; you are an expert in the field of {{main_keyword}}.
 
 **Follow these rules & steps**
@@ -688,6 +700,7 @@ Then write a short summary of this section, including what kind of filters or da
     },
     {
         "order": 70, "key": "continue_part_outline_with_keywords_highlights", "name": "Continue part outline with keywords,highlights", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-5.4",
         "sys": """Act as an {{domain}} employee who assists clients in selecting the right products in {{language}}; you are an expert in the field of {{main_keyword}}.
 
 **Follow these rules & steps**
@@ -774,6 +787,7 @@ Use the previous sections content summary to avoid duplications:
     },
     {
         "order": 75, "key": "stuffing", "name": "Stuffing", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "system", "model": "local",
         "sys": """###Objective:
 As an experienced copywriter, your task is to improve the structure and language of a given content piece in {{language}}, following the detailed guidelines provided.
 
@@ -817,6 +831,7 @@ Provide the revised content in {{language}} with proper HTML formatting.""",
     },
     {
         "order": 80, "key": "perplexity_and_gramma", "name": "Perplexity and gramma", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-5.4",
         "sys": """###Objective:
 As an experienced copywriter, your task is to improve the structure and language of a given content piece in {{language}}, ensuring that the original meaning is preserved. Aim for a Flesch-Kincaid Reading Ease score between 40-50, suitable for a general audience with a basic understanding of the language.
 
@@ -857,6 +872,7 @@ Provide the revised content in {{language}} with proper HTML formatting.""",
     },
     {
         "order": 85, "key": "formatting", "name": "Formatting", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-5.4",
         "sys": """###Objective:
 As an experienced copywriter, you are to refine the structure and language of a category description intended for a webpage with a product list in {{language}}. Your revisions should enhance clarity, engagement, and readability, using HTML formatting where it truly adds value.
 
