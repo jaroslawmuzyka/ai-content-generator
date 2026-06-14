@@ -353,10 +353,12 @@ def render():
                 bar2 = st.progress(0); ph2 = st.empty()
                 keys = [k for k in prompts if not outputs.get(k,{}).get("skipped")]
                 for i,sk in enumerate(keys):
-                    ph2.info(f"Oceniam {i+1}/{len(keys)}: {prompts[sk]['step_name']}")
+                    ph2.info(f"Oceniam ({prov}/{mdl}) {i+1}/{len(keys)}: {prompts[sk]['step_name']}")
                     bar2.progress((i+1)/max(len(keys),1))
                     cur["evaluations"][sk] = evaluate_step(
-                        sk, prompts[sk]["step_name"], prompts[sk]["system"],
+                        sk, prompts[sk]["step_name"], 
+                        outputs.get(sk,{}).get("system_prompt_used", prompts[sk]["system"]),
+                        outputs.get(sk,{}).get("user_prompt_used", prompts[sk]["user"]),
                         outputs.get(sk,{}).get("output",""), job, prov, mdl)
                 bar2.empty(); ph2.empty()
                 st.success("Ocena zakończona!"); st.rerun()

@@ -45,8 +45,11 @@ Zwróć WYŁĄCZNIE poprawny JSON bez komentarzy."""
 _EVAL_USER = """Etap: {step_name}
 Cel: {purpose}
 
-SYSTEM PROMPT (fragment):
+SYSTEM PROMPT (dostarczony do modelu):
 {sys_preview}
+
+USER PROMPT (dostarczony do modelu):
+{user_preview}
 
 OUTPUT AI:
 {output}
@@ -201,13 +204,15 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
                     tout += res.get("output_tokens", 0)
                 else:
                     results[step_key] = {"output": final_text, "error": res.get("error"), "skipped": False,
-                                         "tokens_in": tin, "tokens_out": tout}
+                                         "tokens_in": tin, "tokens_out": tout,
+                                         "system_prompt_used": sp, "user_prompt_used": up}
                     ok_flag = False
                     break
             if ok_flag:
                 previous_outputs[step_key] = final_text.strip()
                 last_output = final_text.strip()
-                results[step_key] = {"output": final_text.strip(), "skipped": False, "tokens_in": tin, "tokens_out": tout}
+                results[step_key] = {"output": final_text.strip(), "skipped": False, "tokens_in": tin, "tokens_out": tout,
+                                     "system_prompt_used": sp, "user_prompt_used": up}
             continue
             
         if step_key == "stuffing":
@@ -261,10 +266,11 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
             previous_outputs[step_key] = res["text"]
             last_output = res["text"]
             results[step_key] = {"output": res["text"], "skipped": False,
-                                  "tokens_in": res.get("input_tokens", 0), "tokens_out": res.get("output_tokens", 0)}
+                                  "tokens_in": res.get("input_tokens", 0), "tokens_out": res.get("output_tokens", 0),
+                                  "system_prompt_used": sp, "user_prompt_used": up}
         else:
             results[step_key] = {"output": "", "error": res.get("error", "Błąd AI"), "skipped": False,
-                                  "tokens_in": 0, "tokens_out": 0}
+                                  "tokens_in": 0, "tokens_out": 0, "system_prompt_used": sp, "user_prompt_used": up}
             last_output = ""
 
     results["__jina"] = {
@@ -276,17 +282,21 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
     return results
 
 
-def evaluate_step(step_key, step_name, system_prompt, output_text, job_data, provider, model):
+def evaluate_step(step_key, step_name, system_prompt_used, user_prompt_used, output_text, job_data, provider, model):
     """Ocenia output kroku. Zwraca dict z oceną."""
     if not (output_text or "").strip():
         return {"score": 0, "verdict": "poor", "strengths": [],
                 "weaknesses": ["Brak outputu"], "improvement_suggestions": ["Sprawdź klucze API i konfigurację"]}
 
     purpose = STEP_PURPOSES.get(step_key, "Nieznany cel etapu")
+    sys_pr = system_prompt_used[:1000] + ("..." if len(system_prompt_used) > 1000 else "")
+    usr_pr = user_prompt_used[:2000] + ("..." if len(user_prompt_used) > 2000 else "")
+    
     prompt = _EVAL_USER.format(
         step_name=step_name, purpose=purpose,
-        sys_preview=system_prompt[:600] + ("..." if len(system_prompt) > 600 else ""),
-        output=output_text[:2000] + ("..." if len(output_text) > 2000 else ""),
+        sys_preview=sys_pr,
+        user_preview=usr_pr,
+        output=output_text[:3000] + ("..." if len(output_text) > 3000 else ""),
         main_keyword=job_data.get("main_keyword", ""),
         language=job_data.get("language", ""),
         content_type=job_data.get("content_type", "")
@@ -414,7 +424,8 @@ def run_auto_loop(initial_steps, job_data, provider, model, strategy_data,
             ev = evaluate_step(
                 step_key=sk,
                 step_name=current_prompts[sk]["step_name"],
-                system_prompt=current_prompts[sk]["system"],
+                system_prompt_used=outputs.get(sk, {}).get("system_prompt_used", current_prompts[sk]["system"]),
+                user_prompt_used=outputs.get(sk, {}).get("user_prompt_used", current_prompts[sk]["user"]),
                 output_text=outputs.get(sk, {}).get("output", ""),
                 job_data=job_data,
                 provider=provider,
