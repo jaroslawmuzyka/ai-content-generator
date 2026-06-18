@@ -206,6 +206,20 @@ def render():
                     for step in steps:
                         # Domyślnie bierzemy stan z bazy, ale jak klucz istnieje w st.session_state to nadpisujemy
                         chk_val = st.session_state.get(f"step_toggle_{step['id']}", step["is_active"])
+                        
+                        # Zastosuj nadrzędne reguły z "Zakresu generacji" pomimo tego, co wyklikał użytkownik na interfejsie
+                        if "Treść na kategorie" not in zakres:
+                            if step["step_key"] not in ["meta_titles_and_descriptions", "seo_abstract"]:
+                                chk_val = False
+                                
+                        if "Meta Title" not in zakres and "Meta Description" not in zakres:
+                            if step["step_key"] == "meta_titles_and_descriptions":
+                                chk_val = False
+                                
+                        if "SEO Abstract" not in zakres:
+                            if step["step_key"] == "seo_abstract":
+                                chk_val = False
+                                
                         job_step_toggles[step["id"]] = chk_val
                         
                     # Zrzut snapshotu
