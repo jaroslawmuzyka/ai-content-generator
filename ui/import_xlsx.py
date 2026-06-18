@@ -27,7 +27,7 @@ def render():
 | Kolumna | Wymagana | Opis |
 |---|---|---|
 | `main_keyword` | ✅ TAK | Główna fraza kluczowa |
-| `content_type` | ✅ TAK | Typ: `blog_post`, `ecommerce_category`, `ecommerce_product`, `landing_page` |
+| `content_type` | ✅ TAK | Typ: `blog_post`, `ecommerce_category`, `ecommerce_category_mm`, `ecommerce_product`, `landing_page` |
 | `language` | ✅ TAK | Kod języka: `pl`, `en`, `de`, `cs`, `sk` |
 | `locale` | Nie | Np. `pl-PL` (domyślnie = language) |
 | `url` | Nie | Adres URL (dla optymalizacji istniejącej strony) |
@@ -80,6 +80,14 @@ def render():
         "Status po imporcie",
         ["queued", "draft"],
         help="**Queued** — od razu do kolejki generowania. **Draft** — zapisz, a zatwierdź później."
+    )
+
+    st.markdown("#### Zakres generacji dla całego pliku")
+    zakres = st.multiselect(
+        "Wybierz co chcesz wygenerować dla wszystkich wierszy:",
+        ["Treść na kategorie", "Meta Title", "Meta Description", "SEO Abstract"],
+        default=["Treść na kategorie", "Meta Title", "Meta Description", "SEO Abstract"],
+        help="Jeśli odznaczysz 'Treść na kategorie', pominięte zostaną wszystkie etapy generowania artykułów/kategorii, a zostaną tylko Meta Tagi i/lub SEO Abstract."
     )
 
     st.divider()
@@ -152,7 +160,7 @@ def render():
             with st.spinner("Zapisuję do bazy danych..."):
                 ok, msg = process_import(
                     valid_records, selected_camp_id, selected_set_id,
-                    target_status, op_name, on_progress
+                    target_status, op_name, zakres, on_progress
                 )
 
             if ok:

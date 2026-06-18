@@ -676,12 +676,17 @@ def process_single_job(job_id, progress_callback=None):
     return True, "Zadanie wygenerowane pomyślnie!"
 
 
-def process_job_batch(limit, campaign_id=None, batch_progress_cb=None, job_progress_cb=None):
+def process_job_batch(limit, campaign_id=None, job_ids=None, batch_progress_cb=None, job_progress_cb=None):
     """
-    Uruchamia pętlę procesu dla N zadań (limit).
+    Uruchamia pętlę procesu dla N zadań (limit) lub po określonych ID.
     Dzięki temu pojedyncze błędy nie zatrzymują całej partii.
     """
-    jobs = get_next_queued_jobs(limit, campaign_id)
+    if job_ids:
+        from services.job_repository import get_jobs_by_ids
+        jobs = get_jobs_by_ids(job_ids)
+    else:
+        jobs = get_next_queued_jobs(limit, campaign_id)
+        
     if not jobs:
         return 0, 0, 0
 

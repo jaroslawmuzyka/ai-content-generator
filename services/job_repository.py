@@ -41,6 +41,18 @@ def get_next_queued_jobs(limit=1, campaign_id=None):
         st.error(f"Błąd pobierania partii zadań: {str(e)}")
         return []
 
+def get_jobs_by_ids(job_ids):
+    """Pobiera konkretne zadania po liście ID."""
+    if not job_ids: return []
+    client = get_supabase_client()
+    if not client: return []
+    try:
+        res = client.table("content_jobs").select("*").in_("id", job_ids).execute()
+        return res.data if res.data else []
+    except Exception as e:
+        st.error(f"Błąd pobierania zadań: {str(e)}")
+        return []
+
 def update_job_status(job_id, status, error_message=None):
     client = get_supabase_client()
     if not client: return False

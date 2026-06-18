@@ -18,6 +18,26 @@ def sanitize_excel_cell(text, fallback="Brak danych"):
         return text_str[:32700] + "\n[... OBcięto przez limit Excela ...]"
     return text_str
 
+def html_to_markdown(html_str):
+    """Prosty konwerter z HTML wygenerowanego przez AI do Markdown."""
+    if not html_str: return ""
+    md = str(html_str)
+    md = md.replace('<h1>', '# ').replace('</h1>', '\n\n')
+    md = md.replace('<h2>', '## ').replace('</h2>', '\n\n')
+    md = md.replace('<h3>', '### ').replace('</h3>', '\n\n')
+    md = md.replace('<h4>', '#### ').replace('</h4>', '\n\n')
+    md = md.replace('<p>', '').replace('</p>', '\n\n')
+    md = md.replace('<ul>', '').replace('</ul>', '\n\n')
+    md = md.replace('<li>', '- ').replace('</li>', '\n')
+    md = md.replace('<strong>', '**').replace('</strong>', '**')
+    md = md.replace('<b>', '**').replace('</b>', '**')
+    md = md.replace('<em>', '*').replace('</em>', '*')
+    md = md.replace('<i>', '*').replace('</i>', '*')
+    md = md.replace('<br>', '\n').replace('<br/>', '\n')
+    # strip remaining tags
+    md = re.sub(r'<[^>]+>', '', md)
+    return md.strip()
+
 def get_jobs_for_export(campaign_id=None, status=None, content_type=None, language=None, date_from=None, date_to=None):
     """Pobiera zadania dopasowane do wszystkich filtrów z UI."""
     client = get_supabase_client()
@@ -126,9 +146,14 @@ def generate_export_xlsx(jobs, steps):
             "secondary_keywords": job["secondary_keywords"],
             "target_length": job["target_length"],
             "final_length": final_len,
+            "meta_title": sanitize_excel_cell(job.get("meta_title")),
+            "meta_description": sanitize_excel_cell(job.get("meta_description")),
+            "seo_abstract": sanitize_excel_cell(job.get("seo_abstract")),
             "final_html": sanitize_excel_cell(job.get("final_html")),
+            "final_markdown": sanitize_excel_cell(html_to_markdown(job.get("final_html"))),
             "status": job["status"],
-            "created_at": job["created_at"][:19] if job.get("created_at") else "", # ucinamy timezone w excelu by było ładniej
+            "operator_name": job["operator_name"],
+            "created_at": str(job["created_at"])[:16].replace('T', ' ') if job.get("created_at") else "",
             "completed_at": job["completed_at"][:19] if job.get("completed_at") else ""
         })
         

@@ -22,7 +22,7 @@ def render():
         c1, c2, c3 = st.columns(3)
         f_camp = c1.selectbox("Wybierz Kampanię", list(camp_options.keys()), format_func=lambda x: camp_options[x], key="exp_f_camp")
         f_status = c2.selectbox("Tylko o statusie", JOB_STATUSES, index=JOB_STATUSES.index("completed") if "completed" in JOB_STATUSES else 0, help="Domyślnie eksportowane są tylko ukończone zlecenia, by nie zaciemniać tabel logami w toku.")
-        f_ctype = c3.selectbox("Typ treści", ["all", "ecommerce_category", "ecommerce_product", "blog_post", "landing_page"])
+        f_ctype = c3.selectbox("Typ treści", ["all", "ecommerce_category", "ecommerce_product", "blog_post", "landing_page", "ecommerce_category_mm"])
         
         c4, c5 = st.columns(2)
         f_lang = c4.selectbox("Język", ["all", "pl", "en", "de", "cs", "sk"])
@@ -33,9 +33,30 @@ def render():
         
         st.divider()
         
-        if st.button("🚀 Uruchom Konstruktora XLSX", type="primary"):
+        # Szybki podgląd zadań
+        preview_jobs = get_jobs_for_export(f_camp, f_status, f_ctype, f_lang, d_from, d_to)
+        
+        if not preview_jobs:
+            st.info("ℹ️ Brak zadań pasujących do obecnych filtrów.")
+        else:
+            st.markdown(f"### Podgląd ({len(preview_jobs)} znalezionych zadań)")
+            import pandas as pd
+            df_preview = pd.DataFrame([{
+                "ID": j["id"],
+                "Fraza Kluczowa": j.get("main_keyword", ""),
+                "Typ": j.get("content_type", ""),
+                "Język": j.get("language", ""),
+                "Status": j.get("status", ""),
+                "Utworzono": j.get("created_at", "")[:16].replace('T', ' ')
+            } for j in preview_jobs])
+            
+            st.dataframe(df_preview, use_container_width=True, hide_index=True)
+            
+            st.write("Kliknij poniżej, aby przygotować ostateczny plik Excel z pełnymi danymi (w tym wygenerowane treści).")
+
+        if st.button("🚀 Uruchom Konstruktora XLSX", type="primary", disabled=not preview_jobs):
             with st.spinner("Szukanie i zliczanie zadań spełniających kryteria..."):
-                jobs = get_jobs_for_export(f_camp, f_status, f_ctype, f_lang, d_from, d_to)
+                jobs = preview_jobs
                 
             if not jobs:
                 st.warning("⚠️ Nie znaleziono ani jednego zadania w bazie danych pasującego do Twoich filtrów. (Zmień status lub kampanię).")

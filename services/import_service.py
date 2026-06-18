@@ -166,17 +166,34 @@ def validate_uploaded_file(file):
     return valid_records, errors_list
 
 
-def process_import(valid_records, campaign_id, prompt_set_id, status, operator_name, progress_cb=None):
+def process_import(valid_records, campaign_id, prompt_set_id, status, operator_name, zakres, progress_cb=None):
     """
     Otrzymuje w 100% zwalidowane rekordy i tworzy z nich fizyczne obiekty w bazie danych.
     Kopiuje prompt_snapshots dla uodpornienia zadań na późniejsze zmiany w kampanii.
+    Stosuje restrykcje odznaczone w "zakres".
     """
     steps = get_campaign_prompt_steps(prompt_set_id)
     if not steps:
         return False, "Krytyczny Błąd: Wybrany zestaw promptów (szablon AI) nie posiada żadnych kroków do sklonowania."
         
-    # Dla importu masowego używamy domyślnego stanu is_active każdego kroku zapisanego w kampanii
-    job_step_toggles = {step["id"]: step["is_active"] for step in steps}
+    # Dla importu masowego używamy stanu is_active i aplikujemy nadrzędny "zakres"
+    job_step_toggles = {}
+    for step in steps:
+        chk_val = step["is_active"]
+        
+        if "Treść na kategorie" not in zakres:
+            if step["step_key"] not in ["meta_titles_and_descriptions", "seo_abstract"]:
+                chk_val = False
+                
+        if "Meta Title" not in zakres and "Meta Description" not in zakres:
+            if step["step_key"] == "meta_titles_and_descriptions":
+                chk_val = False
+                
+        if "SEO Abstract" not in zakres:
+            if step["step_key"] == "seo_abstract":
+                chk_val = False
+                
+        job_step_toggles[step["id"]] = chk_val
     
     success_count = 0
     total = len(valid_records)

@@ -152,7 +152,72 @@ def render():
 
     st.caption(f"Znaleziono **{len(jobs)}** zadań.")
 
-    # Renderowanie listy jako expandery z akcjami
+    # Renderowanie tabeli z checkboxami zamiast expanderów
+    import pandas as pd
+    
+    df_data = []
+    for job in jobs:
+        camp_name = camp_options.get(job.get("campaign_id"), "Nieznana kampania")
+        df_data.append({
+            "Zaznacz": False,
+            "ID": job["id"],
+            "Status": job.get("status", "draft"),
+            "Słowo kluczowe": job.get("main_keyword", ""),
+            "Kampania": camp_name,
+            "Typ treści": job.get("content_type", ""),
+            "Język": job.get("language", ""),
+            "Utworzono": job.get("created_at", "")[:16].replace('T', ' ')
+        })
+        
+    df = pd.DataFrame(df_data)
+    
+    st.markdown("### Akcje Masowe")
+    col_a, col_b, col_c, col_d, col_e = st.columns(5)
+    
+    edited_df = st.data_editor(
+        df,
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "Zaznacz": st.column_config.CheckboxColumn(required=True),
+            "ID": None # ukrywamy kolumne ID dla czystości UI (jest kluczem)
+        },
+        disabled=["Status", "Słowo kluczowe", "Kampania", "Typ treści", "Język", "Utworzono"]
+    )
+    
+    selected_indices = edited_df[edited_df["Zaznacz"]].index.tolist()
+    selected_ids = [df_data[i]["ID"] for i in selected_indices]
+    
+    if col_a.button("▶️ Uruchom zaznaczone", type="primary", use_container_width=True, disabled=len(selected_ids)==0):
+        def on_batch(idx, total, job, successes, errors):
+            pass
+        def on_job(step_name, current, total):
+            pass
+            
+        with st.spinner("Przetwarzanie zaznaczonych zadań..."):
+            total_ran, ok_cnt, err_cnt = process_job_batch(limit=len(selected_ids), job_ids=selected_ids, batch_progress_cb=on_batch, job_progress_cb=on_job)
+            st.success(f"Zakończono: {ok_cnt} sukcesów, {err_cnt} błędów.")
+            st.rerun()
+
+    if col_b.button("🔄 Zmień na Queued", use_container_width=True, disabled=len(selected_ids)==0):
+        for jid in selected_ids:
+            update_job_status(jid, "queued")
+        st.rerun()
+        
+    if col_c.button("❌ Zmień na Failed (Anuluj)", use_container_width=True, disabled=len(selected_ids)==0):
+        for jid in selected_ids:
+            update_job_status(jid, "failed", "Zadanie ręcznie anulowane przez operatora.")
+        st.rerun()
+
+    if col_d.button("📝 Zmień na Draft", use_container_width=True, disabled=len(selected_ids)==0):
+        for jid in selected_ids:
+            update_job_status(jid, "draft")
+        st.rerun()
+        
+    st.divider()
+
+    # Pozostawiamy podgląd pojedynczy ukryty, ale dostępny jeśli ktoś chce przetestować.
+    st.markdown("### Podgląd Szczegółów (Pojedyncze Akcje)")
     for job in jobs:
         status = job.get("status", "draft")
         badge = _status_badge(status)
