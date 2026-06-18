@@ -49,9 +49,18 @@ def get_missing_api_keys():
 
 _secrets_cache = None
 
+def init_secrets():
+    """Wczytuje sekrety do pamięci (uruchomić w głównym wątku)."""
+    global _secrets_cache
+    if _secrets_cache is None:
+        try:
+            _secrets_cache = dict(st.secrets)
+        except Exception:
+            pass
+
 def get_secret(key: str) -> str:
     """
-    Pobiera sekret z .streamlit/secrets.toml.
+    Pobiera sekret z .streamlit/secrets.toml lub cache.
     Działa niezależnie od kontekstu Streamlit (bezpieczne dla wątków w tle).
     """
     global _secrets_cache
@@ -60,11 +69,22 @@ def get_secret(key: str) -> str:
     try:
         val = st.secrets.get(key)
         if val is not None:
+            # Aktualizujemy cache jeśli jesteśmy w głównym wątku
+            if _secrets_cache is None:
+                _secrets_cache = {}
+            _secrets_cache[key] = val
             return val
     except Exception:
         pass
 
     # Fallback: czytanie pliku ręcznie (dla wątków, gdy sesja st umrze)
+    # Fallback: zrzut ze streamlita (st.secrets skopiowane wczesniej)
+    if _secrets_cache is not None:
+        val = _secrets_cache.get(key)
+        if val is not None:
+            return val
+
+    # Ostateczny Fallback dla środowiska lokalnego: czytanie pliku ręcznie
     if _secrets_cache is None:
         try:
             secrets_path = os.path.join(".streamlit", "secrets.toml")

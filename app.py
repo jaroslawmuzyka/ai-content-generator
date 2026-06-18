@@ -18,9 +18,10 @@ from ui import (
     import_xlsx, queue, results, export, settings, prompt_lab
 )
 
-from utils.secrets_manager import get_missing_critical_secrets, get_missing_api_keys
+from utils.secrets_manager import get_missing_critical_secrets, get_missing_api_keys, init_secrets
 
 def main():
+    init_secrets()
     # 0. Weryfikacja krytycznych sekretów
     missing_critical = get_missing_critical_secrets()
     if missing_critical:
