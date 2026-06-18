@@ -1,6 +1,7 @@
 import streamlit as st
 from supabase import create_client, Client
 from typing import Optional
+from utils.secrets_manager import get_secret
 
 import logging
 from postgrest.exceptions import APIError
@@ -16,8 +17,8 @@ def get_supabase_client() -> Optional[Client]:
     Zwraca None, jeśli zmienne nie są dostępne lub niekompletne.
     """
     try:
-        url = st.secrets.get("SUPABASE_URL")
-        key = st.secrets.get("SUPABASE_KEY")
+        url = get_secret("SUPABASE_URL")
+        key = get_secret("SUPABASE_KEY")
         
         # Odrzucamy puste stringi i None
         if not url or not key:

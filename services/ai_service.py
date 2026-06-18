@@ -1,5 +1,6 @@
 import streamlit as st
 import time
+from utils.secrets_manager import get_secret
 from openai import OpenAI, APIConnectionError, RateLimitError, APIStatusError
 from utils.constants import DEFAULT_MODELS
 
@@ -9,14 +10,14 @@ def get_ai_client(provider):
     Zwraca krotkę: (klient, None) w przypadku sukcesu, lub (None, 'komunikat błędu') przy niepowodzeniu.
     """
     if provider == "openai":
-        api_key = st.secrets.get("OPENAI_API_KEY")
+        api_key = get_secret("OPENAI_API_KEY")
         if not api_key:
             return None, "Brak klucza OPENAI_API_KEY w pliku .streamlit/secrets.toml. Skonfiguruj go, aby używać modeli OpenAI."
         # Standardowy klient OpenAI
         return OpenAI(api_key=api_key), None
         
     elif provider == "openrouter":
-        api_key = st.secrets.get("OPENROUTER_API_KEY")
+        api_key = get_secret("OPENROUTER_API_KEY")
         if not api_key:
             return None, "Brak klucza OPENROUTER_API_KEY w pliku .streamlit/secrets.toml. Skonfiguruj go, aby używać modeli OpenRouter."
         
