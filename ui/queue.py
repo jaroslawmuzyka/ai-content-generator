@@ -157,6 +157,9 @@ def render():
             try:
                 process_job_batch(limit=len(selected_ids), job_ids=selected_ids, batch_progress_cb=None, job_progress_cb=None)
             except Exception as e:
+                import traceback
+                with open("bg_error.log", "a", encoding="utf-8") as f:
+                    f.write(traceback.format_exc() + "\n")
                 import logging
                 logging.getLogger(__name__).error(f"Background execution failed: {str(e)}")
 
@@ -176,6 +179,9 @@ def render():
                 all_visible_ids = [row["ID"] for row in df_data]
                 process_job_batch(limit=len(all_visible_ids), job_ids=all_visible_ids, batch_progress_cb=None, job_progress_cb=None)
             except Exception as e:
+                import traceback
+                with open("bg_error.log", "a", encoding="utf-8") as f:
+                    f.write(traceback.format_exc() + "\n")
                 import logging
                 logging.getLogger(__name__).error(f"Background execution failed: {str(e)}")
 

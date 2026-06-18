@@ -38,7 +38,8 @@ def get_next_queued_jobs(limit=1, campaign_id=None):
         res = query.execute()
         return res.data if res.data else []
     except Exception as e:
-        st.error(f"Błąd pobierania partii zadań: {str(e)}")
+        import logging
+        logging.getLogger(__name__).error(f"Błąd pobierania partii zadań: {str(e)}")
         return []
 
 def get_jobs_by_ids(job_ids):
@@ -47,10 +48,17 @@ def get_jobs_by_ids(job_ids):
     client = get_supabase_client()
     if not client: return []
     try:
-        res = client.table("content_jobs").select("*").in_("id", job_ids).execute()
-        return res.data if res.data else []
+        all_data = []
+        chunk_size = 20
+        for i in range(0, len(job_ids), chunk_size):
+            chunk = job_ids[i:i + chunk_size]
+            res = client.table("content_jobs").select("*").in_("id", chunk).execute()
+            if res.data:
+                all_data.extend(res.data)
+        return all_data
     except Exception as e:
-        st.error(f"Błąd pobierania zadań: {str(e)}")
+        import logging
+        logging.getLogger(__name__).error(f"Błąd pobierania zadań: {str(e)}")
         return []
 
 def update_job_status(job_id, status, error_message=None):
@@ -79,7 +87,8 @@ def requeue_failed_jobs(campaign_id=None):
         res = query.execute()
         return len(res.data) if res.data else 0
     except Exception as e:
-        st.error(f"Błąd podczas ponawiania błędnych zadań: {str(e)}")
+        import logging
+        logging.getLogger(__name__).error(f"Błąd podczas ponawiania błędnych zadań: {str(e)}")
         return 0
 
 def get_job_by_id(job_id):
@@ -129,7 +138,8 @@ def update_job_final_fields(job_id, final_html, meta_title, meta_description, fa
         }).eq("id", job_id).execute()
         return True
     except Exception as e:
-        st.error(f"Błąd zapisu poprawek: {str(e)}")
+        import logging
+        logging.getLogger(__name__).error(f"Błąd zapisu poprawek: {str(e)}")
         return False
 
 def create_content_job(job_data):
@@ -140,7 +150,8 @@ def create_content_job(job_data):
         if res.data: return res.data[0]["id"]
         return None
     except Exception as e:
-        st.error(f"Błąd zapisu zadania: {str(e)}")
+        import logging
+        logging.getLogger(__name__).error(f"Błąd tworzenia zadania: {str(e)}")
         return None
 
 def create_prompt_snapshots_for_job(job_id, original_steps, job_step_toggles):
