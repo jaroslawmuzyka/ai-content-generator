@@ -9,7 +9,8 @@ from postgrest.exceptions import APIError
 logger = logging.getLogger("ai_content_generator.db")
 
 # Cacheowanie klienta, aby uniknąć wielokrotnego zestawiania połączeń przy każdym przerysowaniu UI
-@st.cache_resource
+_supabase_client = None
+
 def get_supabase_client() -> Optional[Client]:
     """
     Zwraca zainicjalizowanego klienta Supabase.
@@ -25,7 +26,9 @@ def get_supabase_client() -> Optional[Client]:
             logger.error("Brak poprawnych kluczy Supabase w środowisku.")
             return None
             
-        return create_client(url, key)
+        global _supabase_client
+        _supabase_client = create_client(url, key)
+        return _supabase_client
     except Exception as e:
         logger.error(f"Błąd inicjalizacji Supabase: {str(e)}")
         return None
