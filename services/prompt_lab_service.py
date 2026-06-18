@@ -288,17 +288,21 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
         import json
         import re
         def _strip_blocks(txt):
-            if "```json" in txt: return txt.split("```json")[1].split("```")[0].strip()
-            elif "```" in txt: return txt.split("```")[1].strip()
-            return txt
+            if not txt:
+                return ""
+            import re
+            txt = re.sub(r'```[a-zA-Z]*\s*', '', txt)
+            txt = re.sub(r'```', '', txt)
+            return txt.strip()
+            
         try:
             out_meta = json.loads(_strip_blocks(out_meta))
         except:
             pass
             
     if isinstance(out_meta, dict):
-        meta_title = str(out_meta.get("title1", "")).strip()
-        meta_desc = str(out_meta.get("metaDescription1", "")).strip()
+        meta_title = str(out_meta.get("title", out_meta.get("title1", ""))).strip()
+        meta_desc = str(out_meta.get("metaDescription", out_meta.get("metaDescription1", ""))).strip()
 
     # Extract SEO Abstract
     seo_abstract = ""
@@ -310,7 +314,7 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
         except:
             pass
     if isinstance(out_abs, dict):
-        seo_abstract = str(out_abs.get("seoAbstract", "")).strip()
+        seo_abstract = str(out_abs.get("seoAbstract", out_abs.get("seo_abstract", ""))).strip()
         
     results["__meta"] = {
         "title": meta_title,

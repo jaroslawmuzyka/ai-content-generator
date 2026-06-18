@@ -604,8 +604,8 @@ def process_single_job(job_id, progress_callback=None):
             pass
             
     if isinstance(out_meta, dict):
-        final_fields["meta_title"] = str(out_meta.get("title1", "")).strip()
-        final_fields["meta_description"] = str(out_meta.get("metaDescription1", "")).strip()
+        final_fields["meta_title"] = str(out_meta.get("title", out_meta.get("title1", ""))).strip()
+        final_fields["meta_description"] = str(out_meta.get("metaDescription", out_meta.get("metaDescription1", ""))).strip()
     else:
         final_fields["meta_title"] = ""
         final_fields["meta_description"] = ""
@@ -621,7 +621,7 @@ def process_single_job(job_id, progress_callback=None):
             pass
             
     if isinstance(out_abs, dict):
-        final_fields["seo_abstract"] = str(out_abs.get("seoAbstract", "")).strip()
+        final_fields["seo_abstract"] = str(out_abs.get("seoAbstract", out_abs.get("seo_abstract", ""))).strip()
     else:
         final_fields["seo_abstract"] = ""
 
