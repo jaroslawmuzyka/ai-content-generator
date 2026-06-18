@@ -155,12 +155,13 @@ def render():
             
         st.divider()
         st.write("Wybierz jedną z akcji po sprawdzeniu konfiguracji:")
-        b1, b2, _ = st.columns([2, 2, 6])
+        b1, b2, b3, _ = st.columns([2, 2, 2, 4])
         submit_draft = b1.form_submit_button("📦 Zapisz jako Draft", type="secondary", use_container_width=True)
-        submit_queue = b2.form_submit_button("▶️ Dodaj do kolejki", type="primary", use_container_width=True)
+        submit_queue = b2.form_submit_button("▶️ Dodaj do kolejki", type="secondary", use_container_width=True)
+        submit_run = b3.form_submit_button("🚀 Dodaj i Uruchom (w tle)", type="primary", use_container_width=True)
         
         # Logika obsługi formularza
-        if submit_draft or submit_queue:
+        if submit_draft or submit_queue or submit_run:
             if not main_keyword.strip():
                 st.error("Główne słowo kluczowe jest wymagane!")
             elif target_length < 0:
@@ -170,7 +171,10 @@ def render():
             elif current_content and len(current_content) > 30000:
                 st.error("Wklejona obecna treść jest bardzo długa (powyżej 30k znaków). Może to spowodować przekroczenie limitu tokenów lub błędy timeoutów.")
             else:
-                status = "queued" if submit_queue else "draft"
+                if submit_draft:
+                    status = "draft"
+                else:
+                    status = "queued"
                 
                 # Budowanie DTO
                 job_data = {
@@ -224,7 +228,23 @@ def render():
                         
                     # Zrzut snapshotu
                     if create_prompt_snapshots_for_job(job_id, steps, job_step_toggles):
-                        if status == "queued":
+                        if submit_run:
+                            import threading
+                            from streamlit.runtime.scriptrunner import add_script_run_ctx
+                            from services.job_processor import process_job_batch
+                            
+                            def background_run_single():
+                                try:
+                                    process_job_batch(limit=1, job_ids=[job_id], batch_progress_cb=None, job_progress_cb=None)
+                                except Exception as e:
+                                    import logging
+                                    logging.getLogger(__name__).error(f"Background execution failed: {str(e)}")
+
+                            t = threading.Thread(target=background_run_single)
+                            add_script_run_ctx(t)
+                            t.start()
+                            st.success("✅ Dodano zadanie i uruchomiono je w tle! Możesz zamknąć przeglądarkę.")
+                        elif submit_queue:
                             st.success("✅ Dodano zadanie do kolejki. Przejdź do 'Kolejka generowania', by uruchomić przetwarzanie.")
                         else:
                             st.success("✅ Zapisano szkielet zadania (Draft).")

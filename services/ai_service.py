@@ -83,8 +83,14 @@ def generate_ai_response(provider, model, system_prompt, user_prompt, temperatur
     kwargs = {
         "model": model,
         "messages": messages,
-        "temperature": temperature,
     }
+    
+    if "gpt-5.4-mini" in model or "o1" in model or "o3" in model:
+        # Te modele nie obsługują parametru temperature, lub wymagają 1. 
+        # API OpenAI (np. o3-mini) obsługuje reasoning_effort
+        kwargs["reasoning_effort"] = "low"
+    else:
+        kwargs["temperature"] = temperature
     if max_tokens:
         if "gpt-5" in model or "o1" in model or "o3" in model:
             kwargs["max_completion_tokens"] = max_tokens

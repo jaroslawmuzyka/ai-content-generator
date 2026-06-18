@@ -409,7 +409,7 @@ Keywords for Optimization:
     },
     {
         "order": 40, "key": "meta_titles_and_descriptions", "name": "Meta titles and descriptions", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
-        "provider": "openai", "model": "gpt-4o",
+        "provider": "openai", "model": "gpt-5.4-mini",
         "sys": """Act as an experienced SEO copywriter for ecommerce category pages.
 
 Your task is to generate one final meta title and one final meta description for an ecommerce category page.
@@ -558,7 +558,7 @@ Ekspresy przelewowe do kawy w sklepie MediaMarkt. Znajdź swój ulubiony sposób
     },
     {
         "order": 42, "key": "seo_abstract", "name": "SEO Abstract", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
-        "provider": "openai", "model": "gpt-4o", "temperature": 0.3,
+        "provider": "openai", "model": "gpt-5.4-mini",
         "sys": """Act as an experienced SEO copywriter for ecommerce category pages.
 
 Your task is to generate one short SEO Abstract displayed directly below the H1 heading and above the product listing.

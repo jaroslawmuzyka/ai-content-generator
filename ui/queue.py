@@ -188,16 +188,22 @@ def render():
     selected_indices = edited_df[edited_df["Zaznacz"]].index.tolist()
     selected_ids = [df_data[i]["ID"] for i in selected_indices]
     
-    if col_a.button("▶️ Uruchom zaznaczone", type="primary", use_container_width=True, disabled=len(selected_ids)==0):
-        def on_batch(idx, total, job, successes, errors):
-            pass
-        def on_job(step_name, current, total):
-            pass
-            
-        with st.spinner("Przetwarzanie zaznaczonych zadań..."):
-            total_ran, ok_cnt, err_cnt = process_job_batch(limit=len(selected_ids), job_ids=selected_ids, batch_progress_cb=on_batch, job_progress_cb=on_job)
-            st.success(f"Zakończono: {ok_cnt} sukcesów, {err_cnt} błędów.")
-            st.rerun()
+    if col_a.button("▶️ Uruchom zaznaczone (w tle)", type="primary", use_container_width=True, disabled=len(selected_ids)==0):
+        import threading
+        from streamlit.runtime.scriptrunner import add_script_run_ctx
+
+        def background_run():
+            try:
+                process_job_batch(limit=len(selected_ids), job_ids=selected_ids, batch_progress_cb=None, job_progress_cb=None)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Background execution failed: {str(e)}")
+
+        t = threading.Thread(target=background_run)
+        add_script_run_ctx(t)
+        t.start()
+        
+        st.success("Zadania zostały uruchomione w tle! Możesz zamknąć przeglądarkę, zmienić zakładkę lub wyłączyć komputer. System wygeneruje treści w chmurze.")
 
     if col_b.button("🔄 Zmień na Queued", use_container_width=True, disabled=len(selected_ids)==0):
         for jid in selected_ids:
@@ -239,8 +245,20 @@ def render():
             with action_col1:
                 st.write("**Generowanie**")
                 if status not in ["completed", "processing"]:
-                    if st.button("▶️ Uruchom", key=f"run_{job['id']}", use_container_width=True, type="primary"):
-                        _run_single_job_ui(job["id"])
+                    if st.button("▶️ Uruchom (w tle)", key=f"run_{job['id']}", use_container_width=True, type="primary"):
+                        import threading
+                        from streamlit.runtime.scriptrunner import add_script_run_ctx
+                        from services.job_processor import process_job_batch
+                        def run_in_bg():
+                            try:
+                                process_job_batch(limit=1, job_ids=[job['id']], batch_progress_cb=None, job_progress_cb=None)
+                            except Exception as e:
+                                import logging
+                                logging.getLogger(__name__).error(f"Bg error: {e}")
+                        t = threading.Thread(target=run_in_bg)
+                        add_script_run_ctx(t)
+                        t.start()
+                        st.success("Wysłano do tła! Możesz zamknąć przeglądarkę.")
                     if st.button("🧪 Test", key=f"test_{job['id']}", use_container_width=True):
                         _run_test_job_ui(job["id"], job)
                 if status in ["failed", "draft", "interrupted"]:
