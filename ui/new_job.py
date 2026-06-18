@@ -107,8 +107,16 @@ def render():
             
         priority = p3.number_input("Priorytet (Wyższy = szybszy start)", min_value=0, max_value=100, value=0)
         
+        # Sekcja: Zakres Generacji
+        st.markdown("#### 6. Zakres generacji")
+        zakres = st.multiselect(
+            "Wybierz co chcesz wygenerować:",
+            ["Treść na kategorie", "Meta Title", "Meta Description", "SEO Abstract"],
+            default=["Treść na kategorie", "Meta Title", "Meta Description", "SEO Abstract"]
+        )
+
         # Sekcja: Pipeline (Modyfikacja w locie)
-        st.markdown("#### 6. Przegląd i selekcja etapów (Pipeline)")
+        st.markdown("#### 7. Przegląd i selekcja etapów (Pipeline)")
         st.info("Poniżej znajduje się lista kroków dla tego zestawu. Checkboxy zostały dostosowane na podstawie wybranego Trybu Generowania.")
         
         for step in steps:
@@ -123,6 +131,19 @@ def render():
             elif generation_mode == "quick_content":
                 quick_keys = ["audience_insight", "persuasion_strategy", "main_content", "attractiveness_optimization", "html_cleanup", "seo_qa", "attractiveness_qa"]
                 if step["step_key"] not in quick_keys:
+                    default_active = False
+                    
+            # Nadpisz aktywność na podstawie Zakresu Generacji
+            if "Treść na kategorie" not in zakres:
+                if step["step_key"] not in ["meta_titles_and_descriptions", "seo_abstract"]:
+                    default_active = False
+            
+            if "Meta Title" not in zakres and "Meta Description" not in zakres:
+                if step["step_key"] == "meta_titles_and_descriptions":
+                    default_active = False
+                    
+            if "SEO Abstract" not in zakres:
+                if step["step_key"] == "seo_abstract":
                     default_active = False
             
             # Renderujemy standardowe checkboxy, Streamlit sczyta ich status w momencie kliknięcia w submit

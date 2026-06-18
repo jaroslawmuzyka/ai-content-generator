@@ -299,10 +299,23 @@ def run_lab_pipeline(steps, job_data, provider, model, strategy_data=None, progr
     if isinstance(out_meta, dict):
         meta_title = str(out_meta.get("title1", "")).strip()
         meta_desc = str(out_meta.get("metaDescription1", "")).strip()
+
+    # Extract SEO Abstract
+    seo_abstract = ""
+    abs_key = next((s["step_key"] for s in steps if "SEO Abstract" in s.get("step_name", "")), "seo_abstract")
+    out_abs = previous_outputs.get(abs_key)
+    if isinstance(out_abs, str):
+        try:
+            out_abs = json.loads(_strip_blocks(out_abs))
+        except:
+            pass
+    if isinstance(out_abs, dict):
+        seo_abstract = str(out_abs.get("seoAbstract", "")).strip()
         
     results["__meta"] = {
         "title": meta_title,
-        "description": meta_desc
+        "description": meta_desc,
+        "seo_abstract": seo_abstract
     }
     
     return results

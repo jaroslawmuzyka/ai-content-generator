@@ -440,6 +440,62 @@ Ensure that the final output is ready to be used on the website and can improve 
 {{products_content}}"""
     },
     {
+        "order": 42, "key": "seo_abstract", "name": "SEO Abstract", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
+        "provider": "openai", "model": "gpt-4o",
+        "sys": """Act as an experienced SEO copywriter for ecommerce category pages.
+
+Your task is to generate a short SEO Abstract: an informative introductory text displayed directly below the H1 heading and above the product listing.
+
+The SEO Abstract must:
+* Be written in the requested language.
+* Be optimized naturally for the main keyword.
+* Sound factual, helpful, and category-specific.
+* Mention what users can compare in this category.
+* End with practical purchase criteria relevant to the category.
+* Use exactly 3 sentences.
+* Be between 350 and 450 characters including spaces.
+* Avoid marketing clichés, sales slogans, exaggerated claims, and calls to action.
+* Avoid brand names unless the category or main keyword is explicitly brand-specific.
+* Avoid repeating the same phrases from previously generated content.
+* Avoid keyword stuffing.
+* Do not invent technical details that are not supported by the keyword or product list.
+* If the product list is limited or unclear, write in a safe, general, category-level way.
+* Do not use HTML.
+* Return only valid JSON.
+
+Output format:
+{
+"seoAbstract": "SEO Abstract"
+}""",
+        "user": """You are creating an SEO Abstract for an ecommerce category page.
+
+Language: {{language}}
+Main keyword: {{main_keyword}}
+
+The text should be displayed directly below the H1 heading and above the product listing.
+
+Create one SEO Abstract based on the main keyword and the product list below.
+
+The abstract should follow this structure:
+
+1. Sentence 1: define or explain the category and what distinguishes it.
+2. Sentence 2: describe what the user can compare in this category, based on typical product attributes and the product list.
+3. Sentence 3: mention the most important purchase criteria for this category.
+
+Keep the tone informative, neutral, and useful for users who are comparing products.
+
+Do not use brand names unless the main keyword or category is brand-specific.
+Do not list individual products.
+Do not add promotional phrases such as “best choice”, “top quality”, “great prices”, “buy now”, or similar.
+Do not mention the ecommerce store name.
+Do not exceed 450 characters.
+Return only valid JSON.
+
+## Product list
+
+{{products_content}}"""
+    },
+    {
         "order": 45, "key": "keywords_for_outline", "name": "Keywords for outline", "stage_group": "seo", "output_type": "text", "max_tokens": 4000,
         "provider": "openai", "model": "gpt-4o",
         "sys": """Construct a JSON array to document the matched pairs, using the structure below to organize the data. This array will contain objects with properties for "heading_name" (the headline), and "keywords" (an array of matched keywords).

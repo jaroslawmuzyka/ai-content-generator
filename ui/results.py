@@ -120,6 +120,15 @@ def render():
             char_desc = len(meta_desc)
             c_meta2.caption(f"{'✅' if char_desc <= 160 else '⚠️'} {char_desc}/160 znaków")
 
+            seo_abstract = st.text_area(
+                "SEO Abstract",
+                value=job.get("seo_abstract") or "",
+                height=100,
+                help="Krótki tekst wprowadzający nad listą produktów pod nagłówkiem H1."
+            )
+            char_abs = len(seo_abstract)
+            st.caption(f"{'✅' if 350 <= char_abs <= 450 else '⚠️'} {char_abs} znaków (optymalnie 350-450)")
+
             st.markdown("---")
             st.markdown("##### 📄 Treść główna artykułu")
             st.caption("Sekcje H2 + akapity wygenerowane przez pipeline. Nie zawiera FAQ.")
@@ -136,6 +145,8 @@ def render():
                 safe_html = final_html.replace("<script", "&lt;script").replace("</script>", "&lt;/script&gt;")
                 st.markdown("**Pogląd głównej treści:**")
                 st.markdown(f"<h2>{meta_title or 'Brak Meta Title'}</h2><em>{meta_desc or 'Brak Meta Description'}</em><hr>", unsafe_allow_html=True)
+                if seo_abstract:
+                    st.markdown(f"<p style='font-size: 1.1em; line-height: 1.6; color: #555;'>{seo_abstract}</p>", unsafe_allow_html=True)
                 st.markdown(safe_html, unsafe_allow_html=True)
 
             st.markdown("---")
@@ -155,7 +166,7 @@ def render():
                 st.markdown(safe_faq, unsafe_allow_html=True)
 
             if st.form_submit_button("💾 Zapisz zmiany", type="primary"):
-                if update_job_final_fields(selected_job_id, final_html, meta_title, meta_desc, faq_html):
+                if update_job_final_fields(selected_job_id, final_html, meta_title, meta_desc, faq_html, seo_abstract):
                     st.success("✅ Zmiany zapisane!")
                     st.rerun()
                 else:

@@ -103,7 +103,7 @@ def get_job_steps(job_id):
         logging.getLogger(__name__).error(f"get_job_steps error: {e}")
         return []
 
-def update_job_final_fields(job_id, final_html, meta_title, meta_description, faq_html):
+def update_job_final_fields(job_id, final_html, meta_title, meta_description, faq_html, seo_abstract=""):
     client = get_supabase_client()
     if not client: return False
     try:
@@ -111,6 +111,7 @@ def update_job_final_fields(job_id, final_html, meta_title, meta_description, fa
             "final_html": final_html,
             "meta_title": meta_title,
             "meta_description": meta_description,
+            "seo_abstract": seo_abstract,
             "faq_html": faq_html,
             "updated_at": "now()"
         }).eq("id", job_id).execute()

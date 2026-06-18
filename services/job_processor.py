@@ -610,6 +610,21 @@ def process_single_job(job_id, progress_callback=None):
         final_fields["meta_title"] = ""
         final_fields["meta_description"] = ""
 
+    # SEO Abstract
+    abs_key = next((s["step_key"] for s in steps if "SEO Abstract" in s.get("step_name", "")), "seo_abstract")
+    out_abs = previous_outputs.get(abs_key)
+    if isinstance(out_abs, str):
+        import json
+        try:
+            out_abs = json.loads(_strip_markdown_blocks(out_abs))
+        except:
+            pass
+            
+    if isinstance(out_abs, dict):
+        final_fields["seo_abstract"] = str(out_abs.get("seoAbstract", "")).strip()
+    else:
+        final_fields["seo_abstract"] = ""
+
     # -------------------------------------------------------
     # QA Regułowe (bez LLM) — pełna analiza
     # -------------------------------------------------------
