@@ -682,8 +682,9 @@ def process_job_batch(limit, campaign_id=None, job_ids=None, batch_progress_cb=N
     Dzięki temu pojedyncze błędy nie zatrzymują całej partii.
     """
     if job_ids:
-        from services.job_repository import get_jobs_by_ids
-        jobs = get_jobs_by_ids(job_ids)
+        # Optymalizacja: Nie pobieramy wszystkich zadań naraz (problem z pamięcią/limitem URL).
+        # Tworzymy tylko atrapy z ID, a process_single_job i tak pobierze pełne dane zadania na bieżąco.
+        jobs = [{"id": jid} for jid in job_ids]
     else:
         jobs = get_next_queued_jobs(limit, campaign_id)
         
