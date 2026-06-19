@@ -244,7 +244,6 @@ def render():
                     if st.button("▶️ Uruchom (w tle)", key=f"run_{job['id']}", use_container_width=True, type="primary"):
                         import threading
                         from streamlit.runtime.scriptrunner import add_script_run_ctx
-                        from services.job_processor import process_job_batch
                         def run_in_bg():
                             try:
                                 process_job_batch(limit=1, job_ids=[job['id']], batch_progress_cb=None, job_progress_cb=None)
