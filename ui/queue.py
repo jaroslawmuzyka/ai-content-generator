@@ -45,32 +45,20 @@ def render():
 
     col_limit = None
     if ba2.button("▶ 1 zadanie", use_container_width=True):
-        import threading
-        from streamlit.runtime.scriptrunner import add_script_run_ctx
-        def bg_run():
-            process_job_batch(1, batch_camp if batch_camp != "all" else None)
-        t = threading.Thread(target=bg_run)
-        add_script_run_ctx(t)
-        t.start()
-        st.success("Uruchomiono 1 zadanie w tle. Możesz opuścić stronę.")
+        st.session_state["start_batch"] = True
+        st.session_state["batch_limit"] = 1
+        st.session_state["batch_job_ids"] = None
+        st.rerun()
     if ba3.button("▶ 5 zadań", use_container_width=True):
-        import threading
-        from streamlit.runtime.scriptrunner import add_script_run_ctx
-        def bg_run():
-            process_job_batch(5, batch_camp if batch_camp != "all" else None)
-        t = threading.Thread(target=bg_run)
-        add_script_run_ctx(t)
-        t.start()
-        st.success("Uruchomiono 5 zadań w tle. Możesz opuścić stronę.")
+        st.session_state["start_batch"] = True
+        st.session_state["batch_limit"] = 5
+        st.session_state["batch_job_ids"] = None
+        st.rerun()
     if ba4.button("▶ 10 zadań", type="primary", use_container_width=True):
-        import threading
-        from streamlit.runtime.scriptrunner import add_script_run_ctx
-        def bg_run():
-            process_job_batch(10, batch_camp if batch_camp != "all" else None)
-        t = threading.Thread(target=bg_run)
-        add_script_run_ctx(t)
-        t.start()
-        st.success("Uruchomiono 10 zadań w tle. Możesz opuścić stronę.")
+        st.session_state["start_batch"] = True
+        st.session_state["batch_limit"] = 10
+        st.session_state["batch_job_ids"] = None
+        st.rerun()
     if ba5.button("🔄 Ponów błędne", use_container_width=True, help="Zmienia status zadań 'failed' z powrotem na 'queued'."):
         count = requeue_failed_jobs(batch_camp if batch_camp != "all" else None)
         st.success(f"✅ {count} zadań oznaczono ponownie jako 'queued'.")
@@ -79,6 +67,56 @@ def render():
         count = restore_interrupted_jobs()
         st.success(f"✅ Odblokowano {count} zadań.")
         st.rerun()
+    # ------------------------------------------------------------------
+    # URUCHOMIENIE BATCHA (WIDOK PROGRESU ZAMIAST TŁA)
+    # ------------------------------------------------------------------
+    if st.session_state.get("start_batch"):
+        st.session_state["start_batch"] = False
+
+        batch_limit_val = st.session_state.get("batch_limit")
+        job_ids_val = st.session_state.get("batch_job_ids")
+        c_id_val = batch_camp if batch_camp != "all" else None
+
+        st.markdown("---")
+        st.markdown("### ⚙️ Generowanie w toku...")
+        st.info("Nie zamykaj ani nie odświeżaj tej karty przeglądarki! Możesz jednak pracować w innej zakładce.")
+
+        batch_prog = st.progress(0)
+        batch_status = st.empty()
+        job_prog = st.progress(0)
+        job_status = st.empty()
+
+        def on_batch(idx, total, job, successes, errors):
+            pct = int((idx / total) * 100) if total > 0 else 100
+            batch_prog.progress(pct)
+            if job:
+                # job to słownik, wyciągamy słowo kluczowe
+                kw = job.get("main_keyword", "Nieznane") if isinstance(job, dict) else "Trwa pobieranie..."
+                batch_status.markdown(
+                    f"**Zadanie ({idx+1}/{total})** | Fraza: `{kw}` | "
+                    f"✅ Sukces: `{successes}` | ❌ Błędy: `{errors}`"
+                )
+            else:
+                batch_status.success(f"✅ Koniec! Przetworzono {total} zadań (✅ {successes} | ❌ {errors})")
+
+        def on_job(step_name, current, total):
+            pct = min(100, int((current / total) * 100)) if total > 0 else 100
+            job_prog.progress(pct)
+            job_status.info(f"Etap AI: **{step_name}** ({current}/{total})")
+
+        total_ran, ok_cnt, err_cnt = process_job_batch(batch_limit_val, c_id_val, job_ids_val, on_batch, on_job)
+
+        if total_ran == 0:
+            st.warning("⚠️ Brak zadań do przetworzenia.")
+            job_prog.empty()
+            job_status.empty()
+        else:
+            job_prog.empty()
+            job_status.empty()
+            if st.button("🔄 Odśwież listę zadań po zakończeniu", type="primary"):
+                st.session_state["batch_job_ids"] = None
+                st.rerun()
+
     st.markdown("---")
 
     # ------------------------------------------------------------------
@@ -149,46 +187,19 @@ def render():
     selected_indices = edited_df[edited_df["Zaznacz"]].index.tolist()
     selected_ids = [df_data[i]["ID"] for i in selected_indices]
     
-    if col_a.button("▶️ Uruchom zaznaczone (w tle)", type="primary", use_container_width=True, disabled=len(selected_ids)==0):
-        import threading
-        from streamlit.runtime.scriptrunner import add_script_run_ctx
-
-        def background_run():
-            try:
-                process_job_batch(limit=len(selected_ids), job_ids=selected_ids, batch_progress_cb=None, job_progress_cb=None)
-            except Exception as e:
-                import traceback
-                with open("bg_error.log", "a", encoding="utf-8") as f:
-                    f.write(traceback.format_exc() + "\n")
-                import logging
-                logging.getLogger(__name__).error(f"Background execution failed: {str(e)}")
-
-        t = threading.Thread(target=background_run)
-        add_script_run_ctx(t)
-        t.start()
+    if col_a.button("▶️ Uruchom zaznaczone", type="primary", use_container_width=True, disabled=len(selected_ids)==0):
+        st.session_state["start_batch"] = True
+        st.session_state["batch_limit"] = len(selected_ids)
+        st.session_state["batch_job_ids"] = selected_ids
+        st.session_state["select_all"] = False
+        st.rerun()
         
-        st.success(f"🚀 Uruchomiono {len(selected_ids)} zadań w tle! Możesz zamknąć przeglądarkę.")
-        st.session_state["select_all"] = False # reset
-        
-    if col_d.button("▶️ Uruchom CAŁĄ widoczną listę w tle", type="primary", use_container_width=True):
-        import threading
-        from streamlit.runtime.scriptrunner import add_script_run_ctx
-
-        def background_run():
-            try:
-                all_visible_ids = [row["ID"] for row in df_data]
-                process_job_batch(limit=len(all_visible_ids), job_ids=all_visible_ids, batch_progress_cb=None, job_progress_cb=None)
-            except Exception as e:
-                import traceback
-                with open("bg_error.log", "a", encoding="utf-8") as f:
-                    f.write(traceback.format_exc() + "\n")
-                import logging
-                logging.getLogger(__name__).error(f"Background execution failed: {str(e)}")
-
-        t = threading.Thread(target=background_run)
-        add_script_run_ctx(t)
-        t.start()
-        st.success(f"🚀 Uruchomiono WSZYSTKIE {len(df_data)} zadań z tej listy w tle! Możesz zamknąć przeglądarkę.")
+    if col_d.button("▶️ Uruchom CAŁĄ widoczną listę", type="primary", use_container_width=True):
+        all_visible_ids = [row["ID"] for row in df_data]
+        st.session_state["start_batch"] = True
+        st.session_state["batch_limit"] = len(all_visible_ids)
+        st.session_state["batch_job_ids"] = all_visible_ids
+        st.rerun()
 
     if col_e.button("🔄 Zmień na Queued", use_container_width=True, disabled=len(selected_ids)==0):
         for jid in selected_ids:
